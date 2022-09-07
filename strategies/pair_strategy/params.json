@@ -1,4 +1,6 @@
 {
-  "lookback_period": 100,
-  "correlation_threshold": 0.8
+  "lookback_period": 500,
+  "correlation_threshold": 0.8,
+  "recalibration_interval": 30,
+  "cointegration_pvalue_threshold": 0.1
 }

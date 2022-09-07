@@ -17,11 +17,13 @@ import os
 from time import sleep
 from typing import Dict, List
 from datetime import datetime
+from datetime import timedelta
 from enum import Enum
 import itertools
 import json
 
 import numpy as np
+from statsmodels.tsa.stattools import adfuller
 
 from qtrader.core.constants import Direction, Offset, OrderType, OrderStatus
 from qtrader.core.data import Bar
@@ -72,6 +74,11 @@ class PairStrategy(BaseStrategy):
 
     def init_strategy(self):
         # initialize strategy parameters
+        self.recalibration_date = max(
+            self.engine.gateways[gn].market_datetime
+            for gn in self.securities
+        )
+
         self.ohlcv = {}
         self.lookback_period = {}
         for gateway_name in self.securities:
@@ -118,7 +125,29 @@ class PairStrategy(BaseStrategy):
             + "-" * 30
         )
         self.engine.log.info(cur_data)
-        self._cur_data = cur_data
+
+        cur_datetime = self.get_current_datetime(cur_data)
+
+        # Recalibrate the parameters
+        if cur_datetime >= self.recalibration_date:
+            self.candidate_security_pairs = []
+            for gateway_name in self.engine.gateways:
+                if gateway_name not in cur_data:
+                    continue
+                for security_pair in self.security_pairs:
+                    security1, security2 = list(map(
+                        self.get_security_from_security_code, security_pair))
+                    corr = np.corrcoef(
+                        [np.log(b.close) for b in self.ohlcv[gateway_name][security1]],
+                        [np.log(b.close) for b in self.ohlcv[gateway_name][security2]]
+                    )[0][1]
+
+                    if corr > self.params["correlation_threshold"]:
+                        self.candidate_security_pairs.append(security_pair)
+            self.recalibration_date += timedelta(
+                days=self.params["recalibration_interval"]
+            )
+
 
         for gateway_name in self.engine.gateways:
 
@@ -133,9 +162,10 @@ class PairStrategy(BaseStrategy):
 
                 security1, security2 = list(map(
                     self.get_security_from_security_code, security_pair))
+
+                # Collect the ohlcv data
                 bar1 = cur_data[gateway_name].get(security1)
                 bar2 = cur_data[gateway_name].get(security2)
-
                 if (
                     bar1 is not None
                     and bar1.datetime > self.ohlcv[gateway_name][security1][-1].datetime
@@ -150,7 +180,7 @@ class PairStrategy(BaseStrategy):
                     bar2 is not None
                     and bar2.datetime > self.ohlcv[gateway_name][security2][-1].datetime
                 ):
-                    self.ohlcv[gateway_name][security2].append(bar1)
+                    self.ohlcv[gateway_name][security2].append(bar2)
                     while (
                         len(self.ohlcv[gateway_name][security2])
                         > self.params["lookback_period"]
@@ -160,16 +190,26 @@ class PairStrategy(BaseStrategy):
                 if (
                     len(self.ohlcv[gateway_name][security1]) < self.params["lookback_period"]
                     or len(self.ohlcv[gateway_name][security2]) < self.params["lookback_period"]
+                    or security_pair not in self.candidate_security_pairs
                 ):
                     continue
 
-                corr = np.corrcoef(
-                    [b.close for b in self.ohlcv[gateway_name][security1]],
-                    [b.close for b in self.ohlcv[gateway_name][security2]]
-                )[0][1]
+                # Cointegration test
+                # log(S1) - gamma * log(S2) = mu + epsilon
+                logS1 = np.array([np.log(b.close) for b in self.ohlcv[gateway_name][security1]])
+                logS2 = np.array([np.log(b.close) for b in self.ohlcv[gateway_name][security2]])
+                A = np.array([logS2, np.ones_like(logS2)])
+                w = np.linalg.lstsq(A.T, logS1, rcond=None)[0]
+                gamma, mu = w
+                logS1_fit = gamma * logS2 + mu
+                epsilon = logS1 - logS1_fit
+                adf = adfuller(epsilon, autolag="AIC")
+                adf_pvalue = adf[1]
+                if adf_pvalue > self.params["cointegration_pvalue_threshold"]:
+                    continue
 
-                if corr > self.params["correlation_threshold"]:
-                    print()
+                print()
+
 
     def send_order(self, security: Security,
                    quantity: int,
@@ -224,3 +264,11 @@ class PairStrategy(BaseStrategy):
                 if security.code == security_code:
                     return security
         return None
+
+    def get_current_datetime(
+            self, cur_data: Dict[str, Dict[Security, Bar]]
+    ) -> datetime:
+        return max(list(itertools.chain(
+            *[[cur_data[gn][sec].datetime for sec in cur_data[gn]]
+              for gn in cur_data]
+        )))

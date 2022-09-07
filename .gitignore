@@ -135,3 +135,5 @@ dmypy.json
 # Dataset: https://www.kaggle.com/tencars/392-crypto-currency-pairs-at-minute-resolution
 data/*
 clean_data/*
+log/*
+results/*

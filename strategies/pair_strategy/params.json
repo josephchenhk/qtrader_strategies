@@ -1,0 +1,4 @@
+{
+  "lookback_period": 100,
+  "correlation_threshold": 0.8
+}

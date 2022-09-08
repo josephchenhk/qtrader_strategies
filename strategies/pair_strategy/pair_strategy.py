@@ -13,12 +13,10 @@ written for another century.
 You should have received a copy of the JXW license with
 this file. If not, please write to: josephchenhk@gmail.com
 """
-import os
 from time import sleep
 from typing import Dict, List
 from datetime import datetime
 from datetime import timedelta
-from enum import Enum
 import itertools
 import json
 
@@ -32,22 +30,6 @@ from qtrader.core.position import Position
 from qtrader.core.security import Security
 from qtrader.core.strategy import BaseStrategy
 from qtrader_config import TIME_STEP
-
-SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
-
-
-class Signal(Enum):
-    ENTRY_LONG = 1
-    ENTRY_SHORT = 2
-    ENTRY_ADD_LONG = 3
-    ENTRY_ADD_SHORT = 4
-    EXIT_LONG = 5
-    EXIT_SHORT = 6
-    STOP_LONG = 7
-    STOP_SHORT = 8
-    NO_SIGNAL = 9
-    TIME_STOP_LONG = 10
-    TIME_STOP_SHORT = 11
 
 
 class PairStrategy(BaseStrategy):
@@ -73,7 +55,9 @@ class PairStrategy(BaseStrategy):
         )
 
     def init_strategy(self):
+
         # initialize strategy parameters
+        self.sleep_time = 0
         self.recalibration_date = max(
             self.engine.gateways[gn].market_datetime
             for gn in self.securities
@@ -104,18 +88,12 @@ class PairStrategy(BaseStrategy):
                     security=security
                 )
         self.security_pairs = list(itertools.combinations(security_codes, 2))
-
-    def request_historical_ohlcv(self, gateway_name: str, security: Security):
-        # Request the information every day
-        self.ohlcv[gateway_name][security] = self.engine.req_historical_bars(
-            security=security,
-            gateway_name="Backtest",
-            periods=self.lookback_period[gateway_name][security],
-            freq=f"{int(TIME_STEP / 60000.)}Min",
-            cur_datetime=self.engine.gateways[gateway_name].market_datetime,
-            trading_sessions=self.engine.gateways[gateway_name].trading_sessions[
-                security.code],
-        )
+        self.security_pairs_number_of_entry = {
+            k: {"long1_short2": 0, "short1_long2": 0}
+            for k in self.security_pairs}
+        self.security_pairs_quantity_of_entry = {
+            k: {"long1_short2": [], "short1_long2": []}
+            for k in self.security_pairs}
 
     def on_bar(self, cur_data: Dict[str, Dict[Security, Bar]]):
 
@@ -125,6 +103,7 @@ class PairStrategy(BaseStrategy):
             + "-" * 30
         )
         self.engine.log.info(cur_data)
+        self._cur_data = cur_data
 
         cur_datetime = self.get_current_datetime(cur_data)
 
@@ -148,14 +127,18 @@ class PairStrategy(BaseStrategy):
                 days=self.params["recalibration_interval"]
             )
 
-
         for gateway_name in self.engine.gateways:
 
             if gateway_name not in cur_data:
                 continue
 
             self.engine.log.info(
-                f"strategy portfolio value: {self.get_strategy_portfolio_value(gateway_name)}")
+                f"strategy portfolio value: {self.get_strategy_portfolio_value(gateway_name)}\n"
+                f"strategy positions: {self.portfolios[gateway_name].position}")
+
+
+            # position info
+            position = self.portfolios[gateway_name].position
 
             # Find possible opportunities in every pair
             for security_pair in self.security_pairs:
@@ -208,17 +191,389 @@ class PairStrategy(BaseStrategy):
                 if adf_pvalue > self.params["cointegration_pvalue_threshold"]:
                     continue
 
-                print()
+                epsilon_mean = epsilon.mean()
+                epsilon_std = epsilon.std()
+
+                # check maximum number of entries
+                can_entry_long1_short2 = (
+                    0 <= self.security_pairs_number_of_entry[security_pair]["long1_short2"]
+                    < self.params["max_number_of_entry"]
+                    and self.security_pairs_number_of_entry[security_pair]["short1_long2"] == 0
+                )
+                can_entry_short1_long2 = (
+                    0 <= self.security_pairs_number_of_entry[security_pair]["short1_long2"]
+                    < self.params["max_number_of_entry"]
+                    and self.security_pairs_number_of_entry[security_pair]["long1_short2"] == 0
+                )
+                can_exit_long1_short2 = (
+                    self.security_pairs_number_of_entry[security_pair]["long1_short2"] > 0
+                )
+                can_exit_short1_long2 = (
+                    self.security_pairs_number_of_entry[security_pair]["short1_long2"] < 0
+                )
+                entry_short1_long2 = (
+                    epsilon[-1] > epsilon_mean + epsilon_std *
+                    self.params["entry_threshold"]
+                    and epsilon[-1] < epsilon_mean + epsilon_std *
+                    self.params["exit_threshold"]
+                )
+                entry_long1_short2 = (
+                    epsilon[-1] < epsilon_mean - epsilon_std *
+                    self.params["entry_threshold"]
+                    and epsilon[-1] > epsilon_mean - epsilon_std *
+                    self.params["exit_threshold"]
+                )
+                exit_short1_long2 = (
+                    epsilon[-1] > epsilon_mean + epsilon_std *
+                    self.params["exit_threshold"]
+                )
+                exit_long1_short2 = (
+                    epsilon[-1] < epsilon_mean - epsilon_std *
+                    self.params["exit_threshold"]
+                )
+                take_profit_short1_long2 = (
+                    epsilon[-1] <= epsilon_mean
+                )
+                take_profit_long1_short2 = (
+                    epsilon[-1] >= epsilon_mean
+                )
+
+                # Entry if meet the requirements
+                if (
+                        can_entry_long1_short2
+                        and entry_long1_short2
+                ):
+                    self.engine.log.info("entry_long1_short2:")
+
+                    qty1 = int(self.params["capital_per_entry"] / bar1.close)
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security1.code,
+                        qty=qty1,
+                        side="LONG",
+                        close=bar1.close,
+                        offset="OPEN"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled1 = self.send_order(
+                        security=security1,
+                        quantity=qty1,
+                        direction=Direction.LONG,
+                        offset=Offset.OPEN,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                    qty2 = int(self.params["capital_per_entry"] / bar2.close)
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security2.code,
+                        qty=qty2,
+                        side="SHORT",
+                        close=bar2.close,
+                        offset="OPEN"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled2 = self.send_order(
+                        security=security2,
+                        quantity=qty2,
+                        direction=Direction.SHORT,
+                        offset=Offset.OPEN,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                    if filled1 and filled2:
+                        self.security_pairs_number_of_entry[security_pair]["long1_short2"] += 1
+                        self.security_pairs_quantity_of_entry[security_pair]["long1_short2"].append((qty1, qty2))
+                elif (
+                        can_entry_short1_long2
+                        and entry_short1_long2
+                ):
+                    self.engine.log.info("entry_short1_long2")
+
+                    qty1 = int(self.params["capital_per_entry"] / bar1.close)
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security1.code,
+                        qty=qty1,
+                        side="SHORT",
+                        close=bar1.close,
+                        offset="OPEN"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled1 = self.send_order(
+                        security=security1,
+                        quantity=qty1,
+                        direction=Direction.SHORT,
+                        offset=Offset.OPEN,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                    qty2 = int(self.params["capital_per_entry"] / bar2.close)
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security2.code,
+                        qty=qty2,
+                        side="LONG",
+                        close=bar2.close,
+                        offset="OPEN"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled2 = self.send_order(
+                        security=security2,
+                        quantity=qty2,
+                        direction=Direction.LONG,
+                        offset=Offset.OPEN,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                    if filled1 and filled2:
+                        self.security_pairs_number_of_entry[security_pair][
+                            "short1_long2"] += 1
+                        self.security_pairs_quantity_of_entry[security_pair][
+                            "short1_long2"].append((qty1, qty2))
+
+                elif (
+                        can_exit_long1_short2
+                        and exit_long1_short2
+                ):
+                    self.engine.log.info("exit_long1_short2")
+
+                    self.security_pairs_number_of_entry[security_pair]["long1_short2"] -= 1
+                    qty1, qty2 = self.security_pairs_quantity_of_entry[security_pair][
+                            "long1_short2"].pop(0)
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security1.code,
+                        qty=qty1,
+                        side="SHORT",
+                        close=bar1.close,
+                        offset="CLOSE"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled1 = self.send_order(
+                        security=security1,
+                        quantity=qty1,
+                        direction=Direction.SHORT,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security2.code,
+                        qty=qty2,
+                        side="LONG",
+                        close=bar2.close,
+                        offset="CLOSE"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled2 = self.send_order(
+                        security=security2,
+                        quantity=qty2,
+                        direction=Direction.LONG,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                elif (
+                        can_exit_long1_short2
+                        and take_profit_long1_short2
+                ):
+                    self.engine.log.info("take_profit_long1_short2")
+
+                    qty1 = 0
+                    qty2 = 0
+                    for q1, q2 in self.security_pairs_quantity_of_entry[security_pair]["long1_short2"]:
+                        qty1 += q1
+                        qty2 += q2
+                        self.security_pairs_number_of_entry[security_pair][
+                            "long1_short2"] -= 1
+                    self.security_pairs_quantity_of_entry[security_pair][
+                        "long1_short2"] = []
+                    assert self.security_pairs_number_of_entry[security_pair]["long1_short2"] == 0, (
+                        "Entry number and quantity mismatch!"
+                    )
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security1.code,
+                        qty=qty1,
+                        side="SHORT",
+                        close=bar1.close,
+                        offset="CLOSE"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled1 = self.send_order(
+                        security=security1,
+                        quantity=qty1,
+                        direction=Direction.SHORT,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security2.code,
+                        qty=qty2,
+                        side="LONG",
+                        close=bar2.close,
+                        offset="CLOSE"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled2 = self.send_order(
+                        security=security2,
+                        quantity=qty2,
+                        direction=Direction.LONG,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                elif (
+                        can_exit_short1_long2
+                        and exit_short1_long2
+                ):
+                    self.engine.log.info("exit_short1_long2")
+
+                    self.security_pairs_number_of_entry[security_pair]["short1_long2"] -= 1
+                    qty1, qty2 = self.security_pairs_quantity_of_entry[security_pair][
+                            "short1_long2"].pop(0)
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security1.code,
+                        qty=qty1,
+                        side="LONG",
+                        close=bar1.close,
+                        offset="CLOSE"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled1 = self.send_order(
+                        security=security1,
+                        quantity=qty1,
+                        direction=Direction.LONG,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security2.code,
+                        qty=qty2,
+                        side="SHORT",
+                        close=bar2.close,
+                        offset="CLOSE"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled2 = self.send_order(
+                        security=security2,
+                        quantity=qty2,
+                        direction=Direction.SHORT,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                elif (
+                        can_exit_short1_long2
+                        and take_profit_short1_long2
+                ):
+                    self.engine.log.info("take_profit_short1_long2")
+
+                    qty1 = 0
+                    qty2 = 0
+                    for q1, q2 in self.security_pairs_quantity_of_entry[security_pair]["short1_long2"]:
+                        qty1 += q1
+                        qty2 += q2
+                        self.security_pairs_number_of_entry[security_pair][
+                            "short1_long2"] -= 1
+                    self.security_pairs_quantity_of_entry[security_pair][
+                        "long1_short2"] = []
+                    assert self.security_pairs_number_of_entry[security_pair][
+                               "short1_long2"] == 0, (
+                        "Entry number and quantity mismatch!"
+                    )
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security1.code,
+                        qty=qty1,
+                        side="LONG",
+                        close=bar1.close,
+                        offset="CLOSE"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled1 = self.send_order(
+                        security=security1,
+                        quantity=qty1,
+                        direction=Direction.LONG,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
+
+                    action = dict(
+                        gw=gateway_name,
+                        sec=security2.code,
+                        qty=qty2,
+                        side="SHORT",
+                        close=bar2.close,
+                        offset="CLOSE"
+                    )
+                    self.update_action(
+                        gateway_name=gateway_name, action=action)
+                    filled2 = self.send_order(
+                        security=security2,
+                        quantity=qty2,
+                        direction=Direction.SHORT,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name)
 
 
-    def send_order(self, security: Security,
-                   quantity: int,
-                   direction: Direction,
-                   offset: Offset,
-                   order_type: OrderType,
-                   gateway_name: str
-                   ) -> bool:
-        """return True if order is successfully fully filled, else False"""
+    def request_historical_ohlcv(self, gateway_name: str, security: Security):
+        # Request the information every day
+        self.ohlcv[gateway_name][security] = self.engine.req_historical_bars(
+            security=security,
+            gateway_name="Backtest",
+            periods=self.lookback_period[gateway_name][security],
+            freq=f"{int(TIME_STEP / 60000.)}Min",
+            cur_datetime=self.engine.gateways[gateway_name].market_datetime,
+            trading_sessions=
+            self.engine.gateways[gateway_name].trading_sessions[
+                security.code],
+        )
+
+    def get_bar_datetime(self, gateway_name: str) -> datetime:
+        bar_datetime = datetime(1970, 1, 1)
+        for g in self.engine.gateways:
+            if g == gateway_name:
+                if gateway_name not in self._cur_data:
+                    continue
+                for security in self.securities[gateway_name]:
+                    if security not in self._cur_data[gateway_name]:
+                        continue
+                    bar = self._cur_data[gateway_name][security]
+                    bar_datetime = max(bar_datetime, bar.datetime)
+        return bar_datetime
+
+    def send_order(
+            self,
+            security: Security,
+            quantity: int,
+            direction: Direction,
+            offset: Offset,
+            order_type: OrderType,
+            gateway_name: str
+    ) -> bool:
+        """
+        return True if order is successfully fully filled, else False
+        """
         order_instruct = dict(
             security=security,
             quantity=quantity,
@@ -228,17 +583,16 @@ class PairStrategy(BaseStrategy):
             gateway_name=gateway_name,
         )
 
-        self.engine.log.info(f"提交订单:\n{order_instruct}")
+        self.engine.log.info(f"Place order: {order_instruct}.")
         orderid = self.engine.send_order(**order_instruct)
-        # TODO: sometimes timeout here.
         if orderid == "":
-            self.engine.log.info("提交订单失败")
+            self.engine.log.info("Failed to submit order.")
             return False
-        self.engine.log.info(f"订单{orderid}已发出")
+        self.engine.log.info(f"Order {orderid} has been submitted.")
         sleep(self.sleep_time)
         order = self.engine.get_order(
             orderid=orderid, gateway_name=gateway_name)
-        self.engine.log.info(f"订单{orderid}详情:{order}")
+        self.engine.log.info(f"Order {orderid} status:{order}.")
 
         deals = self.engine.find_deals_with_orderid(
             orderid, gateway_name=gateway_name)
@@ -247,15 +601,16 @@ class PairStrategy(BaseStrategy):
             self.portfolios[gateway_name].update(deal)
 
         if order.status == OrderStatus.FILLED:
-            self.engine.log.info(f"订单已成交{orderid}")
+            self.engine.log.info(f"Order {orderid} has been filled.")
             return True
         else:
             err = self.engine.cancel_order(
                 orderid=orderid, gateway_name=gateway_name)
             if err:
-                self.engine.log.info(f"不能取消订单{orderid},因爲{err}")
+                self.engine.log.info(f"Failed to cancel order {orderid} "
+                                     f"due to the following reason: {err}.")
             else:
-                self.engine.log.info(f"已經取消订单{orderid}")
+                self.engine.log.info(f"Order {orderid} has been cancelled.")
             return False
 
     def get_security_from_security_code(self, security_code: str) -> Security:

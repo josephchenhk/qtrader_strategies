@@ -42,8 +42,8 @@ def run_strategy(**kwargs):
          datetime(1970, 1, 1, 23, 59, 59)],
     ]
     gateway_name = "Backtest"
-    start = datetime(2022, 1, 1, 10, 0, 0)
-    end = datetime(2022, 1, 30, 9, 45, 0)
+    start = datetime(2021, 11, 1, 10, 0, 0)
+    end = datetime(2021, 12, 31, 9, 45, 0)
 
     stock_list = [
         Currency(

@@ -56,37 +56,30 @@ class PairStrategy(BaseStrategy):
 
     def init_strategy(self):
 
+        # Load strategy parameters
+        with open("strategies/pair_strategy/params.json", "rb") as f:
+            self.params = json.load(f)
+
         # initialize strategy parameters
         self.sleep_time = 0
         self.recalibration_date = max(
             self.engine.gateways[gn].market_datetime
             for gn in self.securities
         )
-
+        security_codes = []
         self.ohlcv = {}
         self.lookback_period = {}
         for gateway_name in self.securities:
+            security_codes.extend(
+                [s.code for s in self.securities[gateway_name]])
             self.ohlcv[gateway_name] = {}
             self.lookback_period[gateway_name] = {}
             for security in self.securities[gateway_name]:
-                self.ohlcv[gateway_name][security] = None
-                self.lookback_period[gateway_name][security] = None
-
-        # Load strategy parameters
-        with open("strategies/pair_strategy/params.json", "rb") as f:
-            self.params = json.load(f)
-
-        # Get security pairs
-        security_codes = []
-        for gateway_name in self.securities:
-            security_codes.extend(
-                [s.code for s in self.securities[gateway_name]])
-            for security in self.securities[gateway_name]:
+                self.ohlcv[gateway_name][security] = self.request_historical_ohlcv(
+                    gateway_name=gateway_name, security=security)
                 self.lookback_period[gateway_name][security] = self.params["lookback_period"]
-                self.request_historical_ohlcv(
-                    gateway_name=gateway_name,
-                    security=security
-                )
+
+        # Prepare candidate pairs
         self.security_pairs = list(itertools.combinations(security_codes, 2))
         self.security_pairs_number_of_entry = {
             k: {"long1_short2": 0, "short1_long2": 0}
@@ -136,10 +129,6 @@ class PairStrategy(BaseStrategy):
                 f"strategy portfolio value: {self.get_strategy_portfolio_value(gateway_name)}\n"
                 f"strategy positions: {self.portfolios[gateway_name].position}")
 
-
-            # position info
-            position = self.portfolios[gateway_name].position
-
             # Find possible opportunities in every pair
             for security_pair in self.security_pairs:
 
@@ -149,20 +138,16 @@ class PairStrategy(BaseStrategy):
                 # Collect the ohlcv data
                 bar1 = cur_data[gateway_name].get(security1)
                 bar2 = cur_data[gateway_name].get(security2)
-                if (
-                    bar1 is not None
-                    and bar1.datetime > self.ohlcv[gateway_name][security1][-1].datetime
-                ):
+                if (bar1 is not None and bar1.datetime >
+                        self.ohlcv[gateway_name][security1][-1].datetime):
                     self.ohlcv[gateway_name][security1].append(bar1)
                     while (
                         len(self.ohlcv[gateway_name][security1])
                         > self.params["lookback_period"]
                     ):
                         self.ohlcv[gateway_name][security1].pop(0)
-                if (
-                    bar2 is not None
-                    and bar2.datetime > self.ohlcv[gateway_name][security2][-1].datetime
-                ):
+                if (bar2 is not None and bar2.datetime >
+                        self.ohlcv[gateway_name][security2][-1].datetime):
                     self.ohlcv[gateway_name][security2].append(bar2)
                     while (
                         len(self.ohlcv[gateway_name][security2])
@@ -179,8 +164,10 @@ class PairStrategy(BaseStrategy):
 
                 # Cointegration test
                 # log(S1) - gamma * log(S2) = mu + epsilon
-                logS1 = np.array([np.log(b.close) for b in self.ohlcv[gateway_name][security1]])
-                logS2 = np.array([np.log(b.close) for b in self.ohlcv[gateway_name][security2]])
+                logS1 = np.array([np.log(b.close)
+                                  for b in self.ohlcv[gateway_name][security1]])
+                logS2 = np.array([np.log(b.close)
+                                  for b in self.ohlcv[gateway_name][security2]])
                 A = np.array([logS2, np.ones_like(logS2)])
                 w = np.linalg.lstsq(A.T, logS1, rcond=None)[0]
                 gamma, mu = w
@@ -206,30 +193,22 @@ class PairStrategy(BaseStrategy):
                     and self.security_pairs_number_of_entry[security_pair]["long1_short2"] == 0
                 )
                 can_exit_long1_short2 = (
-                    self.security_pairs_number_of_entry[security_pair]["long1_short2"] > 0
-                )
+                    self.security_pairs_number_of_entry[security_pair]["long1_short2"] > 0)
                 can_exit_short1_long2 = (
-                    self.security_pairs_number_of_entry[security_pair]["short1_long2"] < 0
-                )
+                    self.security_pairs_number_of_entry[security_pair]["short1_long2"] < 0)
                 entry_short1_long2 = (
-                    epsilon[-1] > epsilon_mean + epsilon_std *
-                    self.params["entry_threshold"]
-                    and epsilon[-1] < epsilon_mean + epsilon_std *
-                    self.params["exit_threshold"]
+                    epsilon[-1] > epsilon_mean + epsilon_std * self.params["entry_threshold"]
+                    and epsilon[-1] < epsilon_mean + epsilon_std * self.params["exit_threshold"]
                 )
                 entry_long1_short2 = (
-                    epsilon[-1] < epsilon_mean - epsilon_std *
-                    self.params["entry_threshold"]
-                    and epsilon[-1] > epsilon_mean - epsilon_std *
-                    self.params["exit_threshold"]
+                    epsilon[-1] < epsilon_mean - epsilon_std * self.params["entry_threshold"]
+                    and epsilon[-1] > epsilon_mean - epsilon_std * self.params["exit_threshold"]
                 )
                 exit_short1_long2 = (
-                    epsilon[-1] > epsilon_mean + epsilon_std *
-                    self.params["exit_threshold"]
+                    epsilon[-1] > epsilon_mean + epsilon_std * self.params["exit_threshold"]
                 )
                 exit_long1_short2 = (
-                    epsilon[-1] < epsilon_mean - epsilon_std *
-                    self.params["exit_threshold"]
+                    epsilon[-1] < epsilon_mean - epsilon_std * self.params["exit_threshold"]
                 )
                 take_profit_short1_long2 = (
                     epsilon[-1] <= epsilon_mean
@@ -285,7 +264,8 @@ class PairStrategy(BaseStrategy):
 
                     if filled1 and filled2:
                         self.security_pairs_number_of_entry[security_pair]["long1_short2"] += 1
-                        self.security_pairs_quantity_of_entry[security_pair]["long1_short2"].append((qty1, qty2))
+                        self.security_pairs_quantity_of_entry[security_pair]["long1_short2"].append(
+                            (qty1, qty2))
                 elif (
                         can_entry_short1_long2
                         and entry_short1_long2
@@ -344,7 +324,7 @@ class PairStrategy(BaseStrategy):
 
                     self.security_pairs_number_of_entry[security_pair]["long1_short2"] -= 1
                     qty1, qty2 = self.security_pairs_quantity_of_entry[security_pair][
-                            "long1_short2"].pop(0)
+                        "long1_short2"].pop(0)
                     action = dict(
                         gw=gateway_name,
                         sec=security1.code,
@@ -397,8 +377,7 @@ class PairStrategy(BaseStrategy):
                     self.security_pairs_quantity_of_entry[security_pair][
                         "long1_short2"] = []
                     assert self.security_pairs_number_of_entry[security_pair]["long1_short2"] == 0, (
-                        "Entry number and quantity mismatch!"
-                    )
+                        "Entry number and quantity mismatch!")
                     action = dict(
                         gw=gateway_name,
                         sec=security1.code,
@@ -443,7 +422,7 @@ class PairStrategy(BaseStrategy):
 
                     self.security_pairs_number_of_entry[security_pair]["short1_long2"] -= 1
                     qty1, qty2 = self.security_pairs_quantity_of_entry[security_pair][
-                            "short1_long2"].pop(0)
+                        "short1_long2"].pop(0)
                     action = dict(
                         gw=gateway_name,
                         sec=security1.code,
@@ -496,7 +475,7 @@ class PairStrategy(BaseStrategy):
                     self.security_pairs_quantity_of_entry[security_pair][
                         "long1_short2"] = []
                     assert self.security_pairs_number_of_entry[security_pair][
-                               "short1_long2"] == 0, (
+                        "short1_long2"] == 0, (
                         "Entry number and quantity mismatch!"
                     )
                     action = dict(
@@ -535,17 +514,19 @@ class PairStrategy(BaseStrategy):
                         order_type=OrderType.MARKET,
                         gateway_name=gateway_name)
 
-
-    def request_historical_ohlcv(self, gateway_name: str, security: Security):
+    def request_historical_ohlcv(
+            self,
+            gateway_name: str,
+            security: Security
+    ) -> List[Bar]:
         # Request the information every day
-        self.ohlcv[gateway_name][security] = self.engine.req_historical_bars(
+        return self.engine.req_historical_bars(
             security=security,
             gateway_name="Backtest",
             periods=self.lookback_period[gateway_name][security],
             freq=f"{int(TIME_STEP / 60000.)}Min",
             cur_datetime=self.engine.gateways[gateway_name].market_datetime,
-            trading_sessions=
-            self.engine.gateways[gateway_name].trading_sessions[
+            trading_sessions=self.engine.gateways[gateway_name].trading_sessions[
                 security.code],
         )
 

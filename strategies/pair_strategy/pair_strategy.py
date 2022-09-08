@@ -75,9 +75,10 @@ class PairStrategy(BaseStrategy):
             self.ohlcv[gateway_name] = {}
             self.lookback_period[gateway_name] = {}
             for security in self.securities[gateway_name]:
-                self.ohlcv[gateway_name][security] = self.request_historical_ohlcv(
-                    gateway_name=gateway_name, security=security)
                 self.lookback_period[gateway_name][security] = self.params["lookback_period"]
+                self.ohlcv[gateway_name][
+                    security] = self.request_historical_ohlcv(
+                    gateway_name=gateway_name, security=security)
 
         # Prepare candidate pairs
         self.security_pairs = list(itertools.combinations(security_codes, 2))

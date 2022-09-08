@@ -1,5 +1,5 @@
 {
-  "lookback_period": 500,
+  "lookback_period": 1000,
   "correlation_threshold": 0.8,
   "recalibration_interval": 30,
   "cointegration_pvalue_threshold": 0.1,

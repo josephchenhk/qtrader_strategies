@@ -42,7 +42,7 @@ def run_strategy(**kwargs):
          datetime(1970, 1, 1, 23, 59, 59)],
     ]
     gateway_name = "Backtest"
-    start = datetime(2021, 11, 1, 10, 0, 0)
+    start = datetime(2021, 1, 1, 10, 0, 0)
     end = datetime(2021, 12, 31, 9, 45, 0)
 
     stock_list = [
@@ -103,7 +103,7 @@ def run_strategy(**kwargs):
     strategy_account = "PairStrategy"
     strategy_version = "1.0"
     init_position = Position()
-    init_capital = 0
+    init_capital = 1000000 * 15
 
     strategy = PairStrategy(
         securities={gateway_name: stock_list},

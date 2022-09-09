@@ -259,6 +259,8 @@ class PairsStrategy(BaseStrategy):
                 ):
                     self.engine.log.info("entry_long1_short2:")
                     self.entry_long1_short2(
+                        no=self.security_pairs_number_of_entry[gateway_name][
+                            security_pair]["long1_short2"],
                         gateway_name=gateway_name,
                         security_pair=security_pair,
                         security1=security1,
@@ -272,6 +274,8 @@ class PairsStrategy(BaseStrategy):
                 ):
                     self.engine.log.info("entry_short1_long2")
                     self.entry_short1_long2(
+                        no=self.security_pairs_number_of_entry[gateway_name][
+                            security_pair]["short1_long2"],
                         gateway_name=gateway_name,
                         security_pair=security_pair,
                         security1=security1,
@@ -285,6 +289,8 @@ class PairsStrategy(BaseStrategy):
                 ):
                     self.engine.log.info("exit_long1_short2")
                     self.exit_long1_short2(
+                        no=self.security_pairs_number_of_entry[gateway_name][
+                            security_pair]["long1_short2"],
                         gateway_name=gateway_name,
                         security_pair=security_pair,
                         security1=security1,
@@ -298,6 +304,8 @@ class PairsStrategy(BaseStrategy):
                 ):
                     self.engine.log.info("take_profit_long1_short2")
                     self.take_profit_long1_short2(
+                        no=self.security_pairs_number_of_entry[gateway_name][
+                            security_pair]["long1_short2"],
                         gateway_name=gateway_name,
                         security_pair=security_pair,
                         security1=security1,
@@ -311,6 +319,8 @@ class PairsStrategy(BaseStrategy):
                 ):
                     self.engine.log.info("exit_short1_long2")
                     self.exit_short1_long2(
+                        no=self.security_pairs_number_of_entry[gateway_name][
+                            security_pair]["short1_long2"],
                         gateway_name=gateway_name,
                         security_pair=security_pair,
                         security1=security1,
@@ -324,6 +334,8 @@ class PairsStrategy(BaseStrategy):
                 ):
                     self.engine.log.info("take_profit_short1_long2")
                     self.take_profit_short1_long2(
+                        no=self.security_pairs_number_of_entry[gateway_name][
+                            security_pair]["short1_long2"],
                         gateway_name=gateway_name,
                         security_pair=security_pair,
                         security1=security1,
@@ -430,6 +442,7 @@ class PairsStrategy(BaseStrategy):
 
     def entry_long1_short2(
             self,
+            no: int,
             gateway_name: str,
             security_pair: Tuple[str],
             security1: Security,
@@ -439,6 +452,7 @@ class PairsStrategy(BaseStrategy):
     ):
         qty1 = int(self.params["capital_per_entry"] / bar1.close)
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security1.code,
             qty=qty1,
@@ -458,6 +472,7 @@ class PairsStrategy(BaseStrategy):
 
         qty2 = int(self.params["capital_per_entry"] / bar2.close)
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security2.code,
             qty=qty2,
@@ -484,6 +499,7 @@ class PairsStrategy(BaseStrategy):
 
     def exit_long1_short2(
             self,
+            no: int,
             gateway_name: str,
             security_pair: Tuple[str],
             security1: Security,
@@ -495,6 +511,7 @@ class PairsStrategy(BaseStrategy):
         qty1, qty2 = self.security_pairs_quantity_of_entry[gateway_name][security_pair][
             "long1_short2"].pop(0)
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security1.code,
             qty=qty1,
@@ -513,6 +530,7 @@ class PairsStrategy(BaseStrategy):
             gateway_name=gateway_name)
 
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security2.code,
             qty=qty2,
@@ -532,6 +550,7 @@ class PairsStrategy(BaseStrategy):
 
     def take_profit_long1_short2(
             self,
+            no: int,
             gateway_name: str,
             security_pair: Tuple[str],
             security1: Security,
@@ -553,6 +572,7 @@ class PairsStrategy(BaseStrategy):
                    "long1_short2"] == 0, (
             "Entry number and quantity mismatch!")
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security1.code,
             qty=qty1,
@@ -571,6 +591,7 @@ class PairsStrategy(BaseStrategy):
             gateway_name=gateway_name)
 
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security2.code,
             qty=qty2,
@@ -590,6 +611,7 @@ class PairsStrategy(BaseStrategy):
 
     def entry_short1_long2(
             self,
+            no: int,
             gateway_name: str,
             security_pair: Tuple[str],
             security1: Security,
@@ -599,6 +621,7 @@ class PairsStrategy(BaseStrategy):
     ):
         qty1 = int(self.params["capital_per_entry"] / bar1.close)
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security1.code,
             qty=qty1,
@@ -618,6 +641,7 @@ class PairsStrategy(BaseStrategy):
 
         qty2 = int(self.params["capital_per_entry"] / bar2.close)
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security2.code,
             qty=qty2,
@@ -643,6 +667,7 @@ class PairsStrategy(BaseStrategy):
 
     def exit_short1_long2(
             self,
+            no: int,
             gateway_name: str,
             security_pair: Tuple[str],
             security1: Security,
@@ -654,6 +679,7 @@ class PairsStrategy(BaseStrategy):
         qty1, qty2 = self.security_pairs_quantity_of_entry[gateway_name][security_pair][
             "short1_long2"].pop(0)
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security1.code,
             qty=qty1,
@@ -672,6 +698,7 @@ class PairsStrategy(BaseStrategy):
             gateway_name=gateway_name)
 
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security2.code,
             qty=qty2,
@@ -691,6 +718,7 @@ class PairsStrategy(BaseStrategy):
 
     def take_profit_short1_long2(
             self,
+            no: int,
             gateway_name: str,
             security_pair: Tuple[str],
             security1: Security,
@@ -713,6 +741,7 @@ class PairsStrategy(BaseStrategy):
             "Entry number and quantity mismatch!"
         )
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security1.code,
             qty=qty1,
@@ -731,6 +760,7 @@ class PairsStrategy(BaseStrategy):
             gateway_name=gateway_name)
 
         action = dict(
+            no=no,
             gw=gateway_name,
             sec=security2.code,
             qty=qty2,

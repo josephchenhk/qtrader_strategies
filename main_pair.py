@@ -135,8 +135,8 @@ def run_strategy(**kwargs):
 
     # Event engine
     event_engine = BarEventEngine(
-        {"cta": strategy},
-        {"cta": recorder},
+        {"pairs": strategy},
+        {"pairs": recorder},
         engine
     )
 

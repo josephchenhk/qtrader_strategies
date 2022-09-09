@@ -26,3 +26,8 @@ installing the relevant packages:
 
 Cryptocurrencies tend to co-move due to some common driven forces
 in this space,
+
+# Backtest
+
+![alt text](https://raw.githubusercontent.com/josephchenhk/demo_stratetgy/master/contents/pnl_01.jpeg "pnl_01")
+![alt text](https://raw.githubusercontent.com/josephchenhk/demo_stratetgy/master/contents/closes_Sep11_Sep14.jpeg "closes_sep")

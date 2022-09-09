@@ -29,5 +29,5 @@ in this space,
 
 # Backtest
 
-![alt text](https://raw.githubusercontent.com/josephchenhk/demo_stratetgy/master/contents/pnl_01.jpeg "pnl_01")
-![alt text](https://raw.githubusercontent.com/josephchenhk/demo_stratetgy/master/contents/closes_Sep11_Sep14.jpeg "closes_sep")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/pnl_01.jpeg "pnl_01")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/closes_Sep11_Sep14.jpeg "closes_sep")

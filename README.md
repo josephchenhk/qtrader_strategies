@@ -32,7 +32,41 @@ exploiting mean reversion in prices of securities.
 Suppose `S1` and `S2` are the prices of two securities. In a training
 window, the linear regression of the logarithmic prices gives:
 
-$$\log(S_1) = \gamma\cdot\log(S_2) + \mu$$
+$$\log(S_1) = \gamma\cdot\log(S_2) + \mu + \epsilon$$
+
+The residual $\epsilon$ is expected to exhibit mean-reverting
+properties. If so, a pairs trading strategy can be implemented as
+follows: when the latest $\epsilon$ exceeds 
+$\text{mean}(\epsilon) + \delta\cdot\text{std}(\epsilon)$, 
+security 1 is over-valued, and security 2 is under-valued, 
+therefore we open short position for security 1, and
+long position for security 2; when the latest $\epsilon$ is
+less than 
+$\text{mean}(\epsilon) - \delta\cdot\text{std}(\epsilon)$, 
+security 1 is under-valued, and security 2 is over-valued,
+as a result we open long position for security 1, and
+short position for security 2. The parameter $\delta$
+here is a threshold that should be measured with
+simulation data.
+
+To control the risk, we also need to apply the stop
+loss rule to the strategy: when we are long security 1, and
+short security 2, $\epsilon$ does not mean-revert to 
+its historical mean $\text{mean}(\epsilon)$, but
+deviates further to be even smaller than
+$\text{mean}(\epsilon) - m\delta\cdot\text{std}(\epsilon)$,
+where $m$ is a multiple which is usually larger than 1. In
+this case, we will close the position even if we
+have to realize the loss. Similarly, when we are
+short security 1, and long security 2, $\epsilon$ does not 
+mean-revert to its historical mean $\text{mean}(\epsilon)$,
+but moves further to be even larger than
+$\text{mean}(\epsilon) + m\delta\cdot\text{std}(\epsilon)$,
+we will also close the position which means we will
+realize the loss in the exisitng position. Similar to
+$\delta$, the parameter $m$ is also a threshold that needs
+to be measured with simulation data.
+
 
 # Simulation Results
 
@@ -54,16 +88,30 @@ to find out the cointegrated pairs, only the pairs with
 a p-value in cointegration test lesser than 0.1 will
 be qualified for trading (`cointegration_pvalue_threshold=0.1`). 
 
-The trading rules are as follows: to open a
+As a naive configuration for the strategy, we set
+$\delta=2$ (`entry_threshold=2`), and $m=4$ 
+(`exit_threshold=4`). Note that these two parameters
+are supposed to be fine tuned with the backtest data.
+We also assume for each trading oppotunity, 
+the capital allocated to each security is USD 1 million
+(`capital_per_entry=1000000`). And we only enter
+the trade once for repeating signals 
+(`max_number_of_entry=1`). Since there are six pairs
+of cryptocurrencies, the number of combination is
+$C^2_6 = 15$, the capital required for this 
+strategy is $15$ million.
 
-  "lookback_period": 960,
-  "correlation_threshold": 0.8,
-  "recalibration_interval": 5,
-  "cointegration_pvalue_threshold": 0.1,
-  "entry_threshold": 2,
-  "exit_threshold": 4,
-  "max_number_of_entry": 1,
-  "capital_per_entry": 1000000
+A summary of the strategy parameters are as below:
 
+```json
+"lookback_period": 960,
+"correlation_threshold": 0.8,
+"recalibration_interval": 5,
+"cointegration_pvalue_threshold": 0.1,
+"entry_threshold": 2,
+"exit_threshold": 4,
+"max_number_of_entry": 1,
+"capital_per_entry": 1000000
+```
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/pnl_01.jpeg "pnl_01")
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/closes_Sep11_Sep14.jpeg "closes_sep")

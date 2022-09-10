@@ -101,7 +101,7 @@ of cryptocurrencies, the number of combination is
 $C^2_6 = 15$, the capital required for this 
 strategy is $15$ million.
 
-A summary of the strategy parameters are as below:
+A summary of the strategy parameters is shown as below:
 
 ```json
 "lookback_period": 960,
@@ -113,5 +113,16 @@ A summary of the strategy parameters are as below:
 "max_number_of_entry": 1,
 "capital_per_entry": 1000000
 ```
+Below is the Backtest result from 2021-01-01 to 2021-12-31: 
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/pnl_01.jpeg "pnl_01")
+
+As can be seen, there is a significant drawdown and quick rebounce 
+on 13/14 Sep. The strategy opened new positions for most of the 
+currency pairs with `LTCUSD` almost immediately after hitting 
+the stop loss. We can examine this by viewing the normalized
+prices of all six cryptocurrency pairs. As expected, there was
+indeed observable turbulence in `LTCUSD` during 13 - 14 Sep.
+It is this abnormal price movement that makes the drawdown
+and rebounce.
+
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/closes_Sep11_Sep14.jpeg "closes_sep")

@@ -3,8 +3,8 @@
   "correlation_threshold": 0.8,
   "recalibration_interval": 5,
   "cointegration_pvalue_threshold": 0.1,
-  "entry_threshold": 2,
-  "exit_threshold": 4,
+  "entry_threshold": 1.65,
+  "exit_threshold": 2.56,
   "max_number_of_entry": 1,
   "capital_per_entry": 1000000
 }

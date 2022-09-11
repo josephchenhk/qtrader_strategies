@@ -42,7 +42,8 @@ class PairsStrategy(BaseStrategy):
                  engine: Engine,
                  strategy_trading_sessions: List[List[datetime]] = None,
                  init_strategy_cash: Dict[str, float] = None,
-                 init_strategy_position: Dict[str, Position] = None
+                 init_strategy_position: Dict[str, Position] = None,
+                 **kwargs
                  ):
         super().__init__(
             securities=securities,
@@ -54,11 +55,19 @@ class PairsStrategy(BaseStrategy):
             init_strategy_position=init_strategy_position
         )
 
-    def init_strategy(self):
-
         # Load strategy parameters
         with open("strategies/pairs_strategy/params.json", "rb") as f:
             self.params = json.load(f)
+
+        # Override default indicator config
+        override_indicator_cfg = kwargs.get("override_indicator_cfg")
+        if override_indicator_cfg:
+            for cfg_name, cfg_value in override_indicator_cfg["params"].items():
+                self.params[cfg_name] = cfg_value
+        # print(indicator_cfg)
+        print("Strategy loaded.")
+
+    def init_strategy(self):
 
         # initialize strategy parameters
         self.sleep_time = 0
@@ -198,7 +207,7 @@ class PairsStrategy(BaseStrategy):
                     continue
 
                 # Cointegration test
-                # log(S1) - gamma * log(S2) = mu + epsilon
+                # log(S1) = gamma * log(S2) + mu
                 logS1 = np.array([np.log(b.close)
                                   for b in self.ohlcv[gateway_name][security1]])
                 logS2 = np.array([np.log(b.close)
@@ -206,15 +215,17 @@ class PairsStrategy(BaseStrategy):
                 A = np.array([logS2, np.ones_like(logS2)])
                 w = np.linalg.lstsq(A.T, logS1, rcond=None)[0]
                 gamma, mu = w
-                logS1_fit = gamma * logS2 + mu
-                epsilon = logS1 - logS1_fit
-                adf = adfuller(epsilon, autolag="AIC")
+                if gamma <= 0.1 or gamma >= 10:
+                    continue
+                # logS1_fit = gamma * logS2 + mu
+                spread = logS1 - gamma * logS2
+                adf = adfuller(spread, autolag="AIC")
                 adf_pvalue = adf[1]
                 if adf_pvalue > self.params["cointegration_pvalue_threshold"]:
                     continue
 
-                epsilon_mean = epsilon.mean()
-                epsilon_std = epsilon.std()
+                spread_mean = spread.mean()
+                spread_std = spread.std()
 
                 # check maximum number of entries
                 can_entry_long1_short2 = (
@@ -232,24 +243,24 @@ class PairsStrategy(BaseStrategy):
                 can_exit_short1_long2 = (
                     self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"] < 0)
                 entry_short1_long2 = (
-                    epsilon[-1] > epsilon_mean + epsilon_std * self.params["entry_threshold"]
-                    and epsilon[-1] < epsilon_mean + epsilon_std * self.params["exit_threshold"]
+                    spread[-1] > spread_mean + spread_std * self.params["entry_threshold"]
+                    and spread[-1] < spread_mean + spread_std * self.params["exit_threshold"]
                 )
                 entry_long1_short2 = (
-                    epsilon[-1] < epsilon_mean - epsilon_std * self.params["entry_threshold"]
-                    and epsilon[-1] > epsilon_mean - epsilon_std * self.params["exit_threshold"]
+                    spread[-1] < spread_mean - spread_std * self.params["entry_threshold"]
+                    and spread[-1] > spread_mean - spread_std * self.params["exit_threshold"]
                 )
                 exit_short1_long2 = (
-                    epsilon[-1] > epsilon_mean + epsilon_std * self.params["exit_threshold"]
+                    spread[-1] > spread_mean + spread_std * self.params["exit_threshold"]
                 )
                 exit_long1_short2 = (
-                    epsilon[-1] < epsilon_mean - epsilon_std * self.params["exit_threshold"]
+                    spread[-1] < spread_mean - spread_std * self.params["exit_threshold"]
                 )
                 take_profit_short1_long2 = (
-                    epsilon[-1] <= epsilon_mean
+                    spread[-1] <= spread_mean
                 )
                 take_profit_long1_short2 = (
-                    epsilon[-1] >= epsilon_mean
+                    spread[-1] >= spread_mean
                 )
 
                 # Entry if meet the requirements
@@ -266,7 +277,8 @@ class PairsStrategy(BaseStrategy):
                         security1=security1,
                         bar1=bar1,
                         security2=security2,
-                        bar2=bar2
+                        bar2=bar2,
+                        gamma=gamma
                     )
                 elif (
                         can_entry_short1_long2
@@ -281,7 +293,8 @@ class PairsStrategy(BaseStrategy):
                         security1=security1,
                         bar1=bar1,
                         security2=security2,
-                        bar2=bar2
+                        bar2=bar2,
+                        gamma=gamma
                     )
                 elif (
                         can_exit_long1_short2
@@ -448,9 +461,17 @@ class PairsStrategy(BaseStrategy):
             security1: Security,
             bar1: Bar,
             security2: Security,
-            bar2: Bar
+            bar2: Bar,
+            gamma: float
     ):
-        qty1 = int(self.params["capital_per_entry"] / bar1.close)
+        q1 = int(self.params["capital_per_entry"] / bar1.close)
+        q2 = int(self.params["capital_per_entry"] / bar2.close / gamma)
+        if q1 <= q2:
+            qty1 = q1
+            qty2 = int(qty1 * gamma)
+        else:
+            qty2 = q2
+            qty1 = int(qty2 / gamma)
         action = dict(
             no=no,
             gw=gateway_name,
@@ -470,7 +491,6 @@ class PairsStrategy(BaseStrategy):
             order_type=OrderType.MARKET,
             gateway_name=gateway_name)
 
-        qty2 = int(self.params["capital_per_entry"] / bar2.close)
         action = dict(
             no=no,
             gw=gateway_name,
@@ -617,9 +637,17 @@ class PairsStrategy(BaseStrategy):
             security1: Security,
             bar1: Bar,
             security2: Security,
-            bar2: Bar
+            bar2: Bar,
+            gamma: float
     ):
-        qty1 = int(self.params["capital_per_entry"] / bar1.close)
+        q1 = int(self.params["capital_per_entry"] / bar1.close)
+        q2 = int(self.params["capital_per_entry"] / bar2.close / gamma)
+        if q1 <= q2:
+            qty1 = q1
+            qty2 = int(qty1 * gamma)
+        else:
+            qty2 = q2
+            qty1 = int(qty2 / gamma)
         action = dict(
             no=no,
             gw=gateway_name,
@@ -639,7 +667,6 @@ class PairsStrategy(BaseStrategy):
             order_type=OrderType.MARKET,
             gateway_name=gateway_name)
 
-        qty2 = int(self.params["capital_per_entry"] / bar2.close)
         action = dict(
             no=no,
             gw=gateway_name,

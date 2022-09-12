@@ -32,18 +32,18 @@ exploiting mean reversion in prices of securities.
 Suppose `S1` and `S2` are the prices of two securities. In a training
 window, the linear regression of the logarithmic prices gives:
 
-$$\log(S_1) = \gamma\cdot\log(S_2) + \mu$
+$$\log(S_1) = \gamma\cdot\log(S_2) + \mu$$
 
-The spread $spread = \log(S_1) - \gamma\cdot\log(S_2)$ is expected 
+The spread $s = \log(S_1) - \gamma\cdot\log(S_2)$ is expected 
 to exhibit mean-reverting
 properties. If so, a pairs trading strategy can be implemented as
-follows: when the latest $\mu$ exceeds 
-$\text{mean}(spread) + \delta\cdot\text{std}(spread)$, 
+follows: when the latest spread $s$ exceeds 
+$\text{mean}(s) + \delta\cdot\text{std}(s)$, 
 security 1 is over-valued, and security 2 is under-valued, 
 therefore we open 1 unit of short position for security 1, and
 $\gamma$ unit of long position for security 2; when the 
-latest $spread$ is less than 
-$\text{mean}(spread) - \delta\cdot\text{std}(spread)$, 
+latest $s$ is less than 
+$\text{mean}(s) - \delta\cdot\text{std}(s)$, 
 security 1 is under-valued, and security 2 is over-valued,
 as a result we open 1 unit of long position for security 1, 
 and $\gamma$ unit of short position for security 2. The 
@@ -52,17 +52,17 @@ with simulation data.
 
 To control the risk, we also need to apply the stop
 loss rule to the strategy: if we are long security 1, and
-short security 2, when $spread$ does not mean-revert to 
-its historical mean $\text{mean}(spread)$, but
+short security 2, when $s$ does not mean-revert to 
+its historical mean $\text{mean}(s)$, but
 deviates further to be even smaller than
-$\text{mean}(spread) - m\delta\cdot\text{std}(spread)$,
+$\text{mean}(s) - m\delta\cdot\text{std}(s)$,
 where $m$ is a multiple which is usually larger than 1,
 we will close the position even if we
 have to realize the loss. Similarly, when we are
-short security 1, and long security 2, and $sread$ does not 
-mean-revert to its historical mean $\text{mean}(spread)$,
+short security 1, and long security 2, and $s$ does not 
+mean-revert to its historical mean $\text{mean}(s)$,
 but moves further to be even larger than
-$\text{mean}(spread) + m\delta\cdot\text{std}(spread)$,
+$\text{mean}(s) + m\delta\cdot\text{std}(s)$,
 we will also close the position which means we will
 realize the loss in the exisitng position. Similar to
 $\delta$, the parameter $m$ is also a threshold that needs

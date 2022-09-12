@@ -55,14 +55,14 @@ loss rule to the strategy: if we are long security 1, and
 short security 2, when $s$ does not mean-revert to 
 its historical mean $\text{mean}(s)$, but
 deviates further to be even smaller than
-$\text{mean}(s) - m\delta\cdot\text{std}(s)$,
+$\text{mean}(s) - m\cdot\delta\cdot\text{std}(s)$,
 where $m$ is a multiple which is usually larger than 1,
 we will close the position even if we
 have to realize the loss. Similarly, when we are
 short security 1, and long security 2, and $s$ does not 
 mean-revert to its historical mean $\text{mean}(s)$,
 but moves further to be even larger than
-$\text{mean}(s) + m\delta\cdot\text{std}(s)$,
+$\text{mean}(s) + m\cdot\delta\cdot\text{std}(s)$,
 we will also close the position which means we will
 realize the loss in the exisitng position. Similar to
 $\delta$, the parameter $m$ is also a threshold that needs
@@ -93,7 +93,7 @@ condition must be valid, otherwise the position will
 be closed (`cointegration_pvalue_exit_threshold=0.2`).
 
 As a naive configuration for the strategy, we set
-$\delta=2$ (`entry_threshold=1.96`), and $m=4$ 
+$\delta=1.96$ (`entry_threshold=1.96`), and $m=2.56$ 
 (`exit_threshold=2.56`). Note that these two parameters
 are supposed to be fine tuned with the backtest data.
 We also assume for each trading oppotunity, 

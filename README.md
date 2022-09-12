@@ -97,9 +97,9 @@ $\delta=1.96$ (`entry_threshold=1.96`), and $m=2.56$
 (`exit_threshold=2.56`). Note that these two parameters
 are supposed to be fine tuned with the backtest data.
 We also assume for each trading oppotunity, 
-the capital allocated to each security is USD 1 million
-(`capital_per_entry=1000000`). And we only enter
-the trade once for repeating signals 
+the maximum capital allocated to an individual security 
+is USD 1 million (`capital_per_entry=1000000`). And we 
+only enter the trade once for repeating signals 
 (`max_number_of_entry=1`). Since there are six pairs
 of cryptocurrencies, the number of combination is
 $C^2_6 = 15$, the capital required for this 

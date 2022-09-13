@@ -226,8 +226,8 @@ def run_strategy(override_indicator_cfg=None):
             security_name="XRP.USD",
             exchange=Exchange.SMART),
     ]
-    start = datetime(2021, 12, 15, 0, 0, 0)
-    end = datetime(2022, 8, 10, 23, 59, 59)
+    start = datetime(2020, 12, 15, 0, 0, 0)
+    end = datetime(2021, 12, 31, 23, 59, 59)
 
     # Load data
     data = load_data(stock_list, start, end)

@@ -51,7 +51,7 @@ $$\log(S_1) = \gamma\cdot\log(S_2) + \mu + \epsilon$$
 Given the data window, the slope $\gamma$ and intercept
 $\mu$ could be obtained through linear regression.
 The residual term $\epsilon$ is the spread 
-$s = \log(S_1) - \gamma\cdot\log(S_2)$ which is expected 
+$s = \log(S_1) - \gamma\cdot\log(S_2) - \mu$ which is expected 
 to exhibit mean-reverting
 properties, where $\gamma$ is the hedge ratio. If so, 
 a pairs trading strategy can be implemented as
@@ -154,6 +154,8 @@ Below is the Backtest result from 2021-01-01 to 2021-12-31:
 ____________Performance____________
 Start Date: 2021-01-01
 End Date: 2021-12-31
+Number of Instruments: 6
+Number of Trades: 526
 Total Return: 5.60%
 Sharpe Ratio: 0.68
 Rolling Maximum Drawdown: -4.69%
@@ -183,14 +185,20 @@ Below is the Backtest result from 2022-01-01 to 2022-08-11:
 There is a lot of work to be done to improve the strategy, which is 
 included but not limited to:
 
-- (1). Train the model in a dynamic rolling window, i.e., recalibrate
+- (1). In practice, the model should be trained
+  in a dynamic rolling window, i.e., recalibrating
 the parameters `entry_threshold` and `exit_threshold` regularly.
   The code for optimization is in `optimization_pair.py`.
 
-- (2). Add an absolute stop loss to each traded pair.
+- (2). Add an absolute stop loss to each traded pair
+  to mitigate drawdowns.
 
 - (3). Consider the actual volume to have a better estimation of 
 executed shares.
   
 - (4). Consider a vectorization (dataframe/numpy) implementation 
-  of the backtest, to increase the optimization speed. 
+  of the backtest, to increase the optimization speed. It
+  is relatively difficult to fully replicate the strategy in dataframe
+  operations. An illustrative example is given in 
+  `pandas_pairs.py`, which covers most of the features 
+  in the model, and with much less execution time.

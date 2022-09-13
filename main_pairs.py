@@ -16,14 +16,10 @@ this file. If not, please write to: josephchenhk@gmail.com
 
 ##########################################################################
 #                                                                        #
-#                            CTA strategy                                #
+#                    Pairs Trading strategy                              #
 ##########################################################################
-import sys
-import os
-import shutil
-from datetime import datetime, timedelta
+from datetime import datetime
 
-import dill
 import pandas as pd
 
 from qtrader.core.position import Position
@@ -42,8 +38,8 @@ def run_strategy(**kwargs):
          datetime(1970, 1, 1, 23, 59, 59)],
     ]
     gateway_name = "Backtest"
-    start = datetime(2021, 12, 21, 10, 0, 0)
-    end = datetime(2021, 12, 31, 9, 45, 0)
+    start = datetime(2022, 1, 1, 0, 0, 0)
+    end = datetime(2022, 8, 10, 23, 59, 59)
 
     stock_list = [
         Currency(

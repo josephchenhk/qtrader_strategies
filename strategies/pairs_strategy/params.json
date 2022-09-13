@@ -1,10 +1,11 @@
 {
-  "lookback_period": 960,
-  "correlation_threshold": 0.8,
-  "recalibration_interval": 5,
-  "cointegration_pvalue_threshold": 0.1,
-  "entry_threshold": 1.65,
-  "exit_threshold": 2.56,
+  "lookback_period": 1440,
+  "correlation_threshold": 0.80,
+  "recalibration_interval": 4,
+  "cointegration_pvalue_entry_threshold": 0.05,
+  "cointegration_pvalue_exit_threshold": 0.15,
+  "entry_threshold": 1.5,
+  "exit_threshold": 2.5,
   "max_number_of_entry": 1,
   "capital_per_entry": 1000000
 }

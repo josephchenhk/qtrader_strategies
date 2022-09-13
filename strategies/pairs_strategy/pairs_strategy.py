@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time    : 17/3/2021 3:56 PM
+# @Time    : 3/9/2022 3:56 PM
 # @Author  : Joseph Chen
 # @Email   : josephchenhk@gmail.com
-# @FileName: cta_strategy.py
+# @FileName: pairs_strategy.py
 
 """
 Copyright (C) 2020 Joseph Chen - All Rights Reserved
@@ -62,15 +62,18 @@ class PairsStrategy(BaseStrategy):
         # Override default indicator config
         override_indicator_cfg = kwargs.get("override_indicator_cfg")
         if override_indicator_cfg:
-            for cfg_name, cfg_value in override_indicator_cfg["params"].items():
+            for cfg_name, cfg_value in override_indicator_cfg["params"].items(
+            ):
                 self.params[cfg_name] = cfg_value
         # print(indicator_cfg)
-        print("Strategy loaded.")
+        self.engine.log.info("Strategy loaded.")
 
     def init_strategy(self):
 
         # initialize strategy parameters
         self.sleep_time = 0
+        self.last_candidate_security_pairs = []
+        self.current_candidate_security_pairs = []
         self.recalibration_date = max(
             self.engine.gateways[gn].market_datetime
             for gn in self.securities
@@ -81,6 +84,7 @@ class PairsStrategy(BaseStrategy):
         self.security_pairs = {}
         self.security_pairs_number_of_entry = {}
         self.security_pairs_quantity_of_entry = {}
+        self.security_pairs_entry_spreads = {}  # mean, std
         for gateway_name in self.securities:
             security_codes[gateway_name] = [
                 s.code for s in self.securities[gateway_name]]
@@ -92,6 +96,9 @@ class PairsStrategy(BaseStrategy):
                 k: {"long1_short2": 0, "short1_long2": 0}
                 for k in self.security_pairs[gateway_name]}
             self.security_pairs_quantity_of_entry[gateway_name] = {
+                k: {"long1_short2": [], "short1_long2": []}
+                for k in self.security_pairs[gateway_name]}
+            self.security_pairs_entry_spreads[gateway_name] = {
                 k: {"long1_short2": [], "short1_long2": []}
                 for k in self.security_pairs[gateway_name]}
             for security in self.securities[gateway_name]:
@@ -116,37 +123,9 @@ class PairsStrategy(BaseStrategy):
         # Recalibrate the parameters
         if cur_datetime >= self.recalibration_date:
 
-            # clear position if there is any
-            for gateway_name in self.engine.gateways:
-                if gateway_name not in cur_data:
-                    continue
-                position = self.portfolios[gateway_name].position
-                position_data_lst = position.get_all_positions()
-                for position_data in position_data_lst:
-                    if position_data.direction == Direction.SHORT:
-                        direction = Direction.LONG
-                    elif position_data.direction == Direction.LONG:
-                        direction = Direction.SHORT
-                    self.send_order(
-                        security=position_data.security,
-                        quantity=position_data.quantity,
-                        direction=direction,
-                        offset=Offset.CLOSE,
-                        order_type=OrderType.MARKET,
-                        gateway_name=gateway_name
-                    )
-                for security_pair in self.security_pairs[gateway_name]:
-                    self.security_pairs_number_of_entry[gateway_name][security_pair][
-                        "long1_short2"] = 0
-                    self.security_pairs_number_of_entry[gateway_name][security_pair][
-                        "short1_long2"] = 0
-                    self.security_pairs_quantity_of_entry[gateway_name][security_pair][
-                        "long1_short2"] = []
-                    self.security_pairs_quantity_of_entry[gateway_name][security_pair][
-                        "short1_long2"] = []
-
             # find out candidate pairs
-            self.candidate_security_pairs = []
+            self.last_candidate_security_pairs = self.current_candidate_security_pairs[:]
+            self.current_candidate_security_pairs = []
             for gateway_name in self.engine.gateways:
                 if gateway_name not in cur_data:
                     continue
@@ -157,10 +136,73 @@ class PairsStrategy(BaseStrategy):
                         [np.log(b.close) for b in self.ohlcv[gateway_name][security1]],
                         [np.log(b.close) for b in self.ohlcv[gateway_name][security2]]
                     )[0][1]
-
                     if corr > self.params["correlation_threshold"]:
-                        self.candidate_security_pairs.append(security_pair)
-            self.recalibration_date += timedelta(
+                        self.current_candidate_security_pairs.append(
+                            security_pair)
+
+            # Check whether the pair is still valid candidate pair
+            for gateway_name in self.engine.gateways:
+                if gateway_name not in cur_data:
+                    continue
+                for security_pair in self.security_pairs_quantity_of_entry[gateway_name]:
+                    # keep the position if it is still a candidate pair
+                    if security_pair in self.current_candidate_security_pairs:
+                        continue
+                    # clear position if it is no longer a candidate pair
+                    security1, security2 = list(map(
+                        self.get_security_from_security_code, security_pair))
+                    for qty1, qty2 in self.security_pairs_quantity_of_entry[
+                            gateway_name][security_pair]["long1_short2"]:
+                        self.send_order(
+                            security=security1,
+                            quantity=qty1,
+                            direction=Direction.SHORT,
+                            offset=Offset.CLOSE,
+                            order_type=OrderType.MARKET,
+                            gateway_name=gateway_name
+                        )
+                        self.send_order(
+                            security=security2,
+                            quantity=qty2,
+                            direction=Direction.LONG,
+                            offset=Offset.CLOSE,
+                            order_type=OrderType.MARKET,
+                            gateway_name=gateway_name
+                        )
+                    self.security_pairs_number_of_entry[gateway_name][
+                        security_pair]["long1_short2"] = 0
+                    self.security_pairs_quantity_of_entry[gateway_name][
+                        security_pair]["long1_short2"] = []
+                    self.security_pairs_entry_spreads[gateway_name][
+                        security_pair]["long1_short2"] = []
+
+                    for qty1, qty2 in self.security_pairs_quantity_of_entry[
+                            gateway_name][security_pair]["short1_long2"]:
+                        self.send_order(
+                            security=security1,
+                            quantity=qty1,
+                            direction=Direction.LONG,
+                            offset=Offset.CLOSE,
+                            order_type=OrderType.MARKET,
+                            gateway_name=gateway_name
+                        )
+                        self.send_order(
+                            security=security2,
+                            quantity=qty2,
+                            direction=Direction.SHORT,
+                            offset=Offset.CLOSE,
+                            order_type=OrderType.MARKET,
+                            gateway_name=gateway_name
+                        )
+                    self.security_pairs_number_of_entry[gateway_name][
+                        security_pair]["short1_long2"] = 0
+                    self.security_pairs_quantity_of_entry[gateway_name][
+                        security_pair]["short1_long2"] = []
+                    self.security_pairs_entry_spreads[gateway_name][
+                        security_pair]["short1_long2"] = []
+
+            # Set next re-calibration date
+            self.recalibration_date = self.recalibration_date + timedelta(
                 days=self.params["recalibration_interval"]
             )
 
@@ -182,16 +224,22 @@ class PairsStrategy(BaseStrategy):
                 # Collect the ohlcv data
                 bar1 = cur_data[gateway_name].get(security1)
                 bar2 = cur_data[gateway_name].get(security2)
-                if (bar1 is not None and bar1.datetime >
-                        self.ohlcv[gateway_name][security1][-1].datetime):
+                if (
+                        bar1 is not None
+                        and bar1.datetime > self.ohlcv[gateway_name][
+                            security1][-1].datetime
+                ):
                     self.ohlcv[gateway_name][security1].append(bar1)
                     while (
                         len(self.ohlcv[gateway_name][security1])
                         > self.params["lookback_period"]
                     ):
                         self.ohlcv[gateway_name][security1].pop(0)
-                if (bar2 is not None and bar2.datetime >
-                        self.ohlcv[gateway_name][security2][-1].datetime):
+                if (
+                        bar2 is not None
+                        and bar2.datetime > self.ohlcv[gateway_name][
+                            security2][-1].datetime
+                ):
                     self.ohlcv[gateway_name][security2].append(bar2)
                     while (
                         len(self.ohlcv[gateway_name][security2])
@@ -199,15 +247,20 @@ class PairsStrategy(BaseStrategy):
                     ):
                         self.ohlcv[gateway_name][security2].pop(0)
 
+                union_candidate_security_pairs = list(set(
+                    self.current_candidate_security_pairs
+                    + self.last_candidate_security_pairs
+                ))
                 if (
                     len(self.ohlcv[gateway_name][security1]) < self.params["lookback_period"]
                     or len(self.ohlcv[gateway_name][security2]) < self.params["lookback_period"]
-                    or security_pair not in self.candidate_security_pairs
+                    or security_pair not in union_candidate_security_pairs
                 ):
                     continue
 
                 # Cointegration test
-                # log(S1) = gamma * log(S2) + mu
+                # log(S1) = gamma * log(S2) + mu + epsilon
+                # spread (epsilon) is expected to be mean-reverting
                 logS1 = np.array([np.log(b.close)
                                   for b in self.ohlcv[gateway_name][security1]])
                 logS2 = np.array([np.log(b.close)
@@ -215,148 +268,273 @@ class PairsStrategy(BaseStrategy):
                 A = np.array([logS2, np.ones_like(logS2)])
                 w = np.linalg.lstsq(A.T, logS1, rcond=None)[0]
                 gamma, mu = w
-                if gamma <= 0.1 or gamma >= 10:
-                    continue
                 # logS1_fit = gamma * logS2 + mu
-                spread = logS1 - gamma * logS2
+                spread = logS1 - gamma * logS2 - mu
                 adf = adfuller(spread, autolag="AIC")
                 adf_pvalue = adf[1]
-                if adf_pvalue > self.params["cointegration_pvalue_threshold"]:
-                    continue
-
                 spread_mean = spread.mean()
                 spread_std = spread.std()
+                spread_zscore = (spread[-1] - spread_mean) / spread_std
 
-                # check maximum number of entries
+                # check various entry/exit conditions
                 can_entry_long1_short2 = (
                     0 <= self.security_pairs_number_of_entry[gateway_name][security_pair]["long1_short2"]
                     < self.params["max_number_of_entry"]
                     and self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"] == 0
+                    and (self.recalibration_date - cur_datetime).total_seconds() / 3600. >= 24
+                    and adf_pvalue < self.params["cointegration_pvalue_entry_threshold"]
+                    and security_pair in self.current_candidate_security_pairs
+                    and 0.1 < gamma < 10
                 )
                 can_entry_short1_long2 = (
                     0 <= self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"]
                     < self.params["max_number_of_entry"]
                     and self.security_pairs_number_of_entry[gateway_name][security_pair]["long1_short2"] == 0
+                    and (self.recalibration_date - cur_datetime).total_seconds() / 3600. >= 24
+                    and adf_pvalue < self.params["cointegration_pvalue_entry_threshold"]
+                    and security_pair in self.current_candidate_security_pairs
+                    and 0.1 < gamma < 10
                 )
+                entry_short1_long2 = (
+                    spread_zscore > self.params["entry_threshold"] and spread_zscore < (
+                        self.params["exit_threshold"] + self.params["entry_threshold"]) / 2)
+                entry_long1_short2 = (
+                    spread_zscore < -self.params["entry_threshold"]
+                    and spread_zscore > -(self.params["exit_threshold"] + self.params["entry_threshold"]) / 2
+                )
+
                 can_exit_long1_short2 = (
                     self.security_pairs_number_of_entry[gateway_name][security_pair]["long1_short2"] > 0)
                 can_exit_short1_long2 = (
-                    self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"] < 0)
-                entry_short1_long2 = (
-                    spread[-1] > spread_mean + spread_std * self.params["entry_threshold"]
-                    and spread[-1] < spread_mean + spread_std * self.params["exit_threshold"]
+                    self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"] > 0)
+                exit_long1_short2 = []
+                for i, (entry_spread_mean, entry_spread_std) in enumerate(
+                        self.security_pairs_entry_spreads[
+                            gateway_name][security_pair]["long1_short2"]):
+                    entry_spread_zscore = (
+                        spread[-1] - entry_spread_mean) / entry_spread_std
+                    if (
+                            entry_spread_zscore >= 0
+                            or entry_spread_zscore < -self.params[
+                                "exit_threshold"]
+                    ):
+                        exit_long1_short2.append(i)
+                exit_short1_long2 = []
+                for i, (entry_spread_mean, entry_spread_std) in enumerate(
+                        self.security_pairs_entry_spreads[
+                            gateway_name][security_pair]["short1_long2"]):
+                    entry_spread_zscore = (
+                        spread[-1] - entry_spread_mean) / entry_spread_std
+                    if (
+                            entry_spread_zscore <= 0
+                            or entry_spread_zscore > self.params[
+                                "exit_threshold"]
+                    ):
+                        exit_short1_long2.append(i)
+                exit_all_short1_long2 = (
+                    spread_zscore > self.params["exit_threshold"]
+                    or adf_pvalue > self.params[
+                        "cointegration_pvalue_exit_threshold"]
+                    or gamma <= 0
                 )
-                entry_long1_short2 = (
-                    spread[-1] < spread_mean - spread_std * self.params["entry_threshold"]
-                    and spread[-1] > spread_mean - spread_std * self.params["exit_threshold"]
-                )
-                exit_short1_long2 = (
-                    spread[-1] > spread_mean + spread_std * self.params["exit_threshold"]
-                )
-                exit_long1_short2 = (
-                    spread[-1] < spread_mean - spread_std * self.params["exit_threshold"]
-                )
-                take_profit_short1_long2 = (
-                    spread[-1] <= spread_mean
-                )
-                take_profit_long1_short2 = (
-                    spread[-1] >= spread_mean
+                exit_all_long1_short2 = (
+                    spread_zscore < -self.params["exit_threshold"]
+                    or adf_pvalue > self.params[
+                        "cointegration_pvalue_exit_threshold"]
+                    or gamma <= 0
                 )
 
-                # Entry if meet the requirements
+                # Take trades
                 if (
                         can_entry_long1_short2
                         and entry_long1_short2
                 ):
                     self.engine.log.info("entry_long1_short2:")
+                    qty1, qty2 = self.calc_entry_quantities(bar1, bar2, gamma)
                     self.entry_long1_short2(
                         no=self.security_pairs_number_of_entry[gateway_name][
                             security_pair]["long1_short2"],
                         gateway_name=gateway_name,
-                        security_pair=security_pair,
                         security1=security1,
                         bar1=bar1,
+                        qty1=qty1,
                         security2=security2,
                         bar2=bar2,
-                        gamma=gamma
+                        qty2=qty2
                     )
+                    self.security_pairs_number_of_entry[gateway_name][
+                        security_pair][
+                        "long1_short2"] += 1
+                    self.security_pairs_quantity_of_entry[gateway_name][
+                        security_pair][
+                        "long1_short2"].append(
+                        (qty1, qty2))
+                    self.security_pairs_entry_spreads[gateway_name][
+                        security_pair][
+                        "long1_short2"].append(
+                        (spread_mean, spread_std))
                 elif (
                         can_entry_short1_long2
                         and entry_short1_long2
                 ):
                     self.engine.log.info("entry_short1_long2")
+                    qty1, qty2 = self.calc_entry_quantities(bar1, bar2, gamma)
                     self.entry_short1_long2(
                         no=self.security_pairs_number_of_entry[gateway_name][
                             security_pair]["short1_long2"],
                         gateway_name=gateway_name,
-                        security_pair=security_pair,
                         security1=security1,
                         bar1=bar1,
+                        qty1=qty1,
                         security2=security2,
                         bar2=bar2,
-                        gamma=gamma
+                        qty2=qty2
                     )
+                    self.security_pairs_number_of_entry[gateway_name][
+                        security_pair][
+                        "short1_long2"] += 1
+                    self.security_pairs_quantity_of_entry[gateway_name][
+                        security_pair][
+                        "short1_long2"].append(
+                        (qty1, qty2))
+                    self.security_pairs_entry_spreads[gateway_name][
+                        security_pair][
+                        "short1_long2"].append(
+                        (spread_mean, spread_std))
                 elif (
                         can_exit_long1_short2
-                        and exit_long1_short2
+                        and exit_all_long1_short2
                 ):
-                    self.engine.log.info("exit_long1_short2")
+                    self.engine.log.info("exit_all_long1_short2")
+                    qty1, qty2 = self.get_existing_quantities(
+                        gateway_name=gateway_name,
+                        security_pair=security_pair,
+                        position_side="long1_short2"
+                    )
                     self.exit_long1_short2(
                         no=self.security_pairs_number_of_entry[gateway_name][
                             security_pair]["long1_short2"],
                         gateway_name=gateway_name,
-                        security_pair=security_pair,
                         security1=security1,
                         bar1=bar1,
+                        qty1=qty1,
                         security2=security2,
-                        bar2=bar2
+                        bar2=bar2,
+                        qty2=qty2
                     )
+                    self.security_pairs_number_of_entry[gateway_name][
+                        security_pair][
+                        "long1_short2"] = 0
+                    self.security_pairs_quantity_of_entry[gateway_name][
+                        security_pair][
+                        "long1_short2"] = []
+                    self.security_pairs_entry_spreads[gateway_name][
+                        security_pair][
+                        "long1_short2"] = []
                 elif (
                         can_exit_long1_short2
-                        and take_profit_long1_short2
+                        and len(exit_long1_short2) > 0
                 ):
-                    self.engine.log.info("take_profit_long1_short2")
-                    self.take_profit_long1_short2(
-                        no=self.security_pairs_number_of_entry[gateway_name][
-                            security_pair]["long1_short2"],
-                        gateway_name=gateway_name,
-                        security_pair=security_pair,
-                        security1=security1,
-                        bar1=bar1,
-                        security2=security2,
-                        bar2=bar2
-                    )
+                    self.engine.log.info("exit_long1_short2")
+                    for i in exit_long1_short2:
+                        qty1, qty2 = (
+                            self.security_pairs_quantity_of_entry[gateway_name][
+                                security_pair]["long1_short2"][i]
+                        )
+                        self.exit_long1_short2(
+                            no=self.security_pairs_number_of_entry[gateway_name][
+                                security_pair]["long1_short2"],
+                            gateway_name=gateway_name,
+                            security1=security1,
+                            bar1=bar1,
+                            qty1=qty1,
+                            security2=security2,
+                            bar2=bar2,
+                            qty2=qty2
+                        )
+                    self.security_pairs_number_of_entry[gateway_name][
+                        security_pair]["long1_short2"] -= len(exit_long1_short2)
+                    self.security_pairs_quantity_of_entry[gateway_name][
+                        security_pair]["long1_short2"] = [
+                        q for i, q in enumerate(
+                            self.security_pairs_quantity_of_entry[gateway_name][
+                                security_pair]["long1_short2"])
+                        if i not in exit_long1_short2
+                    ]
+                    self.security_pairs_entry_spreads[gateway_name][
+                        security_pair]["long1_short2"] = [
+                        q for i, q in enumerate(
+                            self.security_pairs_entry_spreads[gateway_name][
+                                security_pair]["long1_short2"])
+                        if i not in exit_long1_short2
+                    ]
                 elif (
                         can_exit_short1_long2
-                        and exit_short1_long2
+                        and exit_all_short1_long2
                 ):
-                    self.engine.log.info("exit_short1_long2")
+                    self.engine.log.info("exit_all_short1_long2")
+                    qty1, qty2 = self.get_existing_quantities(
+                        gateway_name=gateway_name,
+                        security_pair=security_pair,
+                        position_side="short1_long2"
+                    )
                     self.exit_short1_long2(
                         no=self.security_pairs_number_of_entry[gateway_name][
                             security_pair]["short1_long2"],
                         gateway_name=gateway_name,
-                        security_pair=security_pair,
                         security1=security1,
                         bar1=bar1,
+                        qty1=qty1,
                         security2=security2,
-                        bar2=bar2
+                        bar2=bar2,
+                        qty2=qty2
                     )
+                    self.security_pairs_number_of_entry[gateway_name][
+                        security_pair][
+                        "short1_long2"] = 0
+                    self.security_pairs_quantity_of_entry[gateway_name][
+                        security_pair][
+                        "short1_long2"] = []
+                    self.security_pairs_entry_spreads[gateway_name][
+                        security_pair][
+                        "short1_long2"] = []
                 elif (
                         can_exit_short1_long2
-                        and take_profit_short1_long2
+                        and len(exit_short1_long2) > 0
                 ):
-                    self.engine.log.info("take_profit_short1_long2")
-                    self.take_profit_short1_long2(
-                        no=self.security_pairs_number_of_entry[gateway_name][
-                            security_pair]["short1_long2"],
-                        gateway_name=gateway_name,
-                        security_pair=security_pair,
-                        security1=security1,
-                        bar1=bar1,
-                        security2=security2,
-                        bar2=bar2
-                    )
-
+                    self.engine.log.info("exit_short1_long2")
+                    for i in exit_short1_long2:
+                        qty1, qty2 = (
+                            self.security_pairs_quantity_of_entry[gateway_name][
+                                security_pair]["short1_long2"][i]
+                        )
+                        self.exit_short1_long2(
+                            no=self.security_pairs_number_of_entry[gateway_name][
+                                security_pair]["short1_long2"],
+                            gateway_name=gateway_name,
+                            security1=security1,
+                            bar1=bar1,
+                            qty1=qty1,
+                            security2=security2,
+                            bar2=bar2,
+                            qty2=qty2
+                        )
+                    self.security_pairs_number_of_entry[gateway_name][
+                        security_pair]["short1_long2"] -= len(exit_short1_long2)
+                    self.security_pairs_quantity_of_entry[gateway_name][
+                        security_pair]["short1_long2"] = [
+                        q for i, q in enumerate(
+                            self.security_pairs_quantity_of_entry[gateway_name][
+                                security_pair]["short1_long2"])
+                        if i not in exit_short1_long2
+                    ]
+                    self.security_pairs_entry_spreads[gateway_name][
+                        security_pair]["short1_long2"] = [
+                        q for i, q in enumerate(
+                            self.security_pairs_entry_spreads[gateway_name][
+                                security_pair]["short1_long2"])
+                        if i not in exit_short1_long2
+                    ]
 
     def request_historical_ohlcv(
             self,
@@ -453,17 +631,12 @@ class PairsStrategy(BaseStrategy):
               for gn in cur_data]
         )))
 
-    def entry_long1_short2(
+    def calc_entry_quantities(
             self,
-            no: int,
-            gateway_name: str,
-            security_pair: Tuple[str],
-            security1: Security,
             bar1: Bar,
-            security2: Security,
             bar2: Bar,
-            gamma: float
-    ):
+            gamma: float,
+    ) -> Tuple[int]:
         q1 = int(self.params["capital_per_entry"] / bar1.close)
         q2 = int(self.params["capital_per_entry"] / bar2.close / gamma)
         if q1 <= q2:
@@ -472,6 +645,33 @@ class PairsStrategy(BaseStrategy):
         else:
             qty2 = q2
             qty1 = int(qty2 / gamma)
+        return qty1, qty2
+
+    def get_existing_quantities(
+            self,
+            gateway_name: str,
+            security_pair: str,
+            position_side: str
+    ) -> Tuple[int]:
+        qty1 = 0
+        qty2 = 0
+        for q1, q2 in self.security_pairs_quantity_of_entry[gateway_name][
+                security_pair][position_side]:
+            qty1 += q1
+            qty2 += q2
+        return qty1, qty2
+
+    def entry_long1_short2(
+            self,
+            no: int,
+            gateway_name: str,
+            security1: Security,
+            bar1: Bar,
+            qty1: int,
+            security2: Security,
+            bar2: Bar,
+            qty2: int
+    ) -> bool:
         action = dict(
             no=no,
             gw=gateway_name,
@@ -509,27 +709,21 @@ class PairsStrategy(BaseStrategy):
             offset=Offset.OPEN,
             order_type=OrderType.MARKET,
             gateway_name=gateway_name)
-
         if filled1 and filled2:
-            self.security_pairs_number_of_entry[gateway_name][security_pair][
-                "long1_short2"] += 1
-            self.security_pairs_quantity_of_entry[gateway_name][security_pair][
-                "long1_short2"].append(
-                (qty1, qty2))
+            return True
+        return False
 
     def exit_long1_short2(
             self,
             no: int,
             gateway_name: str,
-            security_pair: Tuple[str],
             security1: Security,
             bar1: Bar,
+            qty1: int,
             security2: Security,
-            bar2: Bar
-    ):
-        self.security_pairs_number_of_entry[gateway_name][security_pair]["long1_short2"] -= 1
-        qty1, qty2 = self.security_pairs_quantity_of_entry[gateway_name][security_pair][
-            "long1_short2"].pop(0)
+            bar2: Bar,
+            qty2: int
+    ) -> bool:
         action = dict(
             no=no,
             gw=gateway_name,
@@ -567,87 +761,21 @@ class PairsStrategy(BaseStrategy):
             offset=Offset.CLOSE,
             order_type=OrderType.MARKET,
             gateway_name=gateway_name)
-
-    def take_profit_long1_short2(
-            self,
-            no: int,
-            gateway_name: str,
-            security_pair: Tuple[str],
-            security1: Security,
-            bar1: Bar,
-            security2: Security,
-            bar2: Bar
-    ):
-        qty1 = 0
-        qty2 = 0
-        for q1, q2 in self.security_pairs_quantity_of_entry[gateway_name][security_pair][
-            "long1_short2"]:
-            qty1 += q1
-            qty2 += q2
-            self.security_pairs_number_of_entry[gateway_name][security_pair][
-                "long1_short2"] -= 1
-        self.security_pairs_quantity_of_entry[gateway_name][security_pair][
-            "long1_short2"] = []
-        assert self.security_pairs_number_of_entry[gateway_name][security_pair][
-                   "long1_short2"] == 0, (
-            "Entry number and quantity mismatch!")
-        action = dict(
-            no=no,
-            gw=gateway_name,
-            sec=security1.code,
-            qty=qty1,
-            side="SHORT",
-            close=bar1.close,
-            offset="CLOSE"
-        )
-        self.update_action(
-            gateway_name=gateway_name, action=action)
-        filled1 = self.send_order(
-            security=security1,
-            quantity=qty1,
-            direction=Direction.SHORT,
-            offset=Offset.CLOSE,
-            order_type=OrderType.MARKET,
-            gateway_name=gateway_name)
-
-        action = dict(
-            no=no,
-            gw=gateway_name,
-            sec=security2.code,
-            qty=qty2,
-            side="LONG",
-            close=bar2.close,
-            offset="CLOSE"
-        )
-        self.update_action(
-            gateway_name=gateway_name, action=action)
-        filled2 = self.send_order(
-            security=security2,
-            quantity=qty2,
-            direction=Direction.LONG,
-            offset=Offset.CLOSE,
-            order_type=OrderType.MARKET,
-            gateway_name=gateway_name)
+        if filled1 and filled2:
+            return True
+        return False
 
     def entry_short1_long2(
             self,
             no: int,
             gateway_name: str,
-            security_pair: Tuple[str],
             security1: Security,
             bar1: Bar,
+            qty1: int,
             security2: Security,
             bar2: Bar,
-            gamma: float
-    ):
-        q1 = int(self.params["capital_per_entry"] / bar1.close)
-        q2 = int(self.params["capital_per_entry"] / bar2.close / gamma)
-        if q1 <= q2:
-            qty1 = q1
-            qty2 = int(qty1 * gamma)
-        else:
-            qty2 = q2
-            qty1 = int(qty2 / gamma)
+            qty2: int
+    ) -> bool:
         action = dict(
             no=no,
             gw=gateway_name,
@@ -687,24 +815,20 @@ class PairsStrategy(BaseStrategy):
             gateway_name=gateway_name)
 
         if filled1 and filled2:
-            self.security_pairs_number_of_entry[gateway_name][security_pair][
-                "short1_long2"] += 1
-            self.security_pairs_quantity_of_entry[gateway_name][security_pair][
-                "short1_long2"].append((qty1, qty2))
+            return True
+        return False
 
     def exit_short1_long2(
             self,
             no: int,
             gateway_name: str,
-            security_pair: Tuple[str],
             security1: Security,
             bar1: Bar,
+            qty1: int,
             security2: Security,
-            bar2: Bar
+            bar2: Bar,
+            qty2: int
     ):
-        self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"] -= 1
-        qty1, qty2 = self.security_pairs_quantity_of_entry[gateway_name][security_pair][
-            "short1_long2"].pop(0)
         action = dict(
             no=no,
             gw=gateway_name,
@@ -742,65 +866,6 @@ class PairsStrategy(BaseStrategy):
             offset=Offset.CLOSE,
             order_type=OrderType.MARKET,
             gateway_name=gateway_name)
-
-    def take_profit_short1_long2(
-            self,
-            no: int,
-            gateway_name: str,
-            security_pair: Tuple[str],
-            security1: Security,
-            bar1: Bar,
-            security2: Security,
-            bar2: Bar
-    ):
-        qty1 = 0
-        qty2 = 0
-        for q1, q2 in self.security_pairs_quantity_of_entry[gateway_name][security_pair][
-            "short1_long2"]:
-            qty1 += q1
-            qty2 += q2
-            self.security_pairs_number_of_entry[gateway_name][security_pair][
-                "short1_long2"] -= 1
-        self.security_pairs_quantity_of_entry[gateway_name][security_pair][
-            "long1_short2"] = []
-        assert self.security_pairs_number_of_entry[gateway_name][security_pair][
-                   "short1_long2"] == 0, (
-            "Entry number and quantity mismatch!"
-        )
-        action = dict(
-            no=no,
-            gw=gateway_name,
-            sec=security1.code,
-            qty=qty1,
-            side="LONG",
-            close=bar1.close,
-            offset="CLOSE"
-        )
-        self.update_action(
-            gateway_name=gateway_name, action=action)
-        filled1 = self.send_order(
-            security=security1,
-            quantity=qty1,
-            direction=Direction.LONG,
-            offset=Offset.CLOSE,
-            order_type=OrderType.MARKET,
-            gateway_name=gateway_name)
-
-        action = dict(
-            no=no,
-            gw=gateway_name,
-            sec=security2.code,
-            qty=qty2,
-            side="SHORT",
-            close=bar2.close,
-            offset="CLOSE"
-        )
-        self.update_action(
-            gateway_name=gateway_name, action=action)
-        filled2 = self.send_order(
-            security=security2,
-            quantity=qty2,
-            direction=Direction.SHORT,
-            offset=Offset.CLOSE,
-            order_type=OrderType.MARKET,
-            gateway_name=gateway_name)
+        if filled1 and filled2:
+            return True
+        return False

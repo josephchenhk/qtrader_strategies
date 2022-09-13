@@ -74,10 +74,14 @@ perf_df["portfolio_value"] = result_df.strategy_portfolio_value.apply(
 perf_daily_df = perf_df.resample('D').agg({"portfolio_value": "last"})
 sr = sharp_ratio(perf_daily_df["portfolio_value"].pct_change(), 252)
 roll_mdd = rolling_maximum_drawdown(perf_daily_df['portfolio_value'])
+number_instruments = 6
+num_trades = result_df.action.apply(lambda x: ast.literal_eval(x)[0].count('OPEN')).sum()
 print(
     "____________Performance____________\n"
     + "Start Date: {}\n".format(perf_daily_df.index[0].strftime("%Y-%m-%d"))
     + "End Date: {}\n".format(perf_daily_df.index[-1].strftime("%Y-%m-%d"))
+    + "Number of Instruments: {}\n".format(number_instruments)
+    + "Number of Trades: {}\n".format(num_trades)
     + "Total Return: {:.2f}%\n".format(
         (perf_daily_df["portfolio_value"].iloc[-1]
          / perf_daily_df["portfolio_value"].iloc[0] - 1) * 100)

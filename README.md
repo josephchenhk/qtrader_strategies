@@ -189,16 +189,21 @@ included but not limited to:
   in a dynamic rolling window, i.e., recalibrating
 the parameters `entry_threshold` and `exit_threshold` regularly.
   The code for optimization is in `optimization_pair.py`.
-
-- (2). Add an absolute stop loss to each traded pair
-  to mitigate drawdowns.
-
-- (3). Consider the actual volume to have a better estimation of 
-executed shares.
   
-- (4). Consider a vectorization (dataframe/numpy) implementation 
+- (2). Consider a vectorization (dataframe/numpy) implementation 
   of the backtest, to increase the optimization speed. It
   is relatively difficult to fully replicate the strategy in dataframe
   operations. An illustrative example is given in 
   `pandas_pairs.py`, which covers most of the features 
   in the model, and with much less execution time.
+  
+- (3). Assign different parameters 
+  (`entry_threshold` and `exit_threshold`)
+  to different cryptocurrency pairs. 
+  
+- (4). Add an absolute stop loss to each traded pair
+  to mitigate drawdowns.
+
+- (5). Consider the actual volume to have a better estimation of 
+executed shares.
+  

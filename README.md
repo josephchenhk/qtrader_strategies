@@ -48,12 +48,13 @@ window, the linear regression of the logarithmic prices gives:
 
 $$\log(S_1) = \gamma\cdot\log(S_2) + \mu + \epsilon$$
 
-Given the data window, the slope ($\gamma$) and intercept
-($\mu$) could be obtained through linear regression.
+Given the data window, the slope $\gamma$ and intercept
+$\mu$ could be obtained through linear regression.
 The residual term $\epsilon$ is the spread 
 $s = \log(S_1) - \gamma\cdot\log(S_2)$ which is expected 
 to exhibit mean-reverting
-properties. If so, a pairs trading strategy can be implemented as
+properties, where $\gamma$ is the hedge ratio. If so, 
+a pairs trading strategy can be implemented as
 follows: when the latest spread $s$ exceeds 
 $\text{mean}(s) + \delta\cdot\text{std}(s)$, 
 security 1 is over-valued, and security 2 is under-valued, 

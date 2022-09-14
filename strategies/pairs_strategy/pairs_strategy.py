@@ -296,11 +296,13 @@ class PairsStrategy(BaseStrategy):
                     and 0.1 < gamma < 10
                 )
                 entry_short1_long2 = (
-                    spread_zscore > self.params["entry_threshold"] and spread_zscore < (
-                        self.params["exit_threshold"] + self.params["entry_threshold"]) / 2)
+                    spread_zscore > self.params["entry_threshold"]
+                    and spread_zscore < (self.params["exit_threshold"]
+                                         + self.params["entry_threshold"]) / 2)
                 entry_long1_short2 = (
                     spread_zscore < -self.params["entry_threshold"]
-                    and spread_zscore > -(self.params["exit_threshold"] + self.params["entry_threshold"]) / 2
+                    and spread_zscore > -(self.params["exit_threshold"]
+                                          + self.params["entry_threshold"]) / 2
                 )
 
                 can_exit_long1_short2 = (
@@ -641,10 +643,10 @@ class PairsStrategy(BaseStrategy):
         q2 = int(self.params["capital_per_entry"] / bar2.close / gamma)
         if q1 <= q2:
             qty1 = q1
-            qty2 = int(qty1 * gamma)
+            qty2 = int(q1 * gamma)
         else:
-            qty2 = q2
-            qty1 = int(qty2 / gamma)
+            qty1 = q2
+            qty2 = int(q2 * gamma)
         return qty1, qty2
 
     def get_existing_quantities(

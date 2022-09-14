@@ -203,7 +203,7 @@ class PairsStrategy(BaseStrategy):
 
             # Set next re-calibration date
             self.recalibration_date = self.recalibration_date + timedelta(
-                days=self.params["recalibration_interval"]
+                seconds=self.params["recalibration_interval"] * TIME_STEP / 1000
             )
 
         for gateway_name in self.engine.gateways:

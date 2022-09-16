@@ -16,31 +16,31 @@ this file. If not, please write to: josephchenhk@gmail.com
 from typing import List, Dict
 from datetime import datetime
 import itertools
+import json
 
 import pandas as pd
 import numpy as np
 from statsmodels.regression.rolling import RollingOLS
+from statsmodels.tsa.stattools import adfuller
 
 from qtrader.core.security import Security, Currency
 from qtrader.core.constants import Exchange
 from qtrader.core.data import _get_data
 
 
-def zscore(series: pd.Series) -> pd.Series:
-    """calculate z-score"""
-    return (series - series.mean()) / np.std(series)
-
 def load_data(
         stock_list: List[Security],
+        data_start: datetime,
         start: datetime,
-        end: datetime
+        end: datetime,
+        lookback_period: int = None
 ) -> pd.DataFrame:
     """Load close prices"""
     all_data = pd.DataFrame(columns=[s.code for s in stock_list])
     for security in stock_list:
         data = _get_data(
             security=security,
-            start=start,
+            start=data_start,
             end=end,
             dfield="kline",
             dtype=['time_key', 'open', 'high', 'low', 'close', 'volume'])
@@ -52,73 +52,124 @@ def load_data(
             new_data.columns = [security.code]
             all_data = all_data.join(new_data, how="outer")
     all_data = all_data.ffill().bfill()
-    return all_data
+    if all_data[all_data.index <= start].shape[0] < lookback_period:
+        raise ValueError("There is not enough lookback data, change data_start")
+    ret_data = pd.concat(
+        [all_data[all_data.index <= start].iloc[-lookback_period:],
+         all_data[all_data.index > start]]
+    )
+    return ret_data
 
 def run_pairs(
         data: pd.DataFrame,
         asset1: str,
         asset2: str,
-        entry_threshold: float = 1.5,
-        exit_threshold: float = 2.0,
         lookback_period: int = 1440,
-        capital_per_entry: float = 1000000
+        correlation_threshold: float = -1.1,
+        recalibration_interval: int = 384,
+        cointegration_pvalue_entry_threshold: float = 0.05,
+        entry_threshold: float = 1.5,
+        exit_threshold: float = 2.5,
+        max_number_of_entry: int = 1,
+        capital_per_entry: float = 1000000.0
 ):
     """run backtest for a pair"""
     # (asset1, asset2) is the pair to test strategy
-    # create a train dataframe of 2 assets
-    train = pd.DataFrame()
-    train['asset1'] = data[asset1]
-    train['asset2'] = data[asset2]
-
-    # create a dataframe for trading signals
     signals = pd.DataFrame()
-    signals['asset1'] = train['asset1']
-    signals['asset2'] = train['asset2']
+    signals['asset1'] = data[asset1]
+    signals['asset2'] = data[asset2]
+
+    # correlation
+    signals['corr'] = np.log(signals['asset1']).rolling(
+        lookback_period).corr(np.log(signals['asset2']))
+    recalibration_date = [0] * signals.shape[0]
+    recalibration_corr = [np.nan] * signals.shape[0]
+    for i in range(lookback_period-1, signals.shape[0], recalibration_interval):
+        recalibration_date[i] = 1
+        recalibration_corr[i] = signals['corr'].iloc[i]
+    signals['recalibration_date'] = recalibration_date
+    signals['recalibration_corr'] = recalibration_corr
+    signals['recalibration_corr'] = signals['recalibration_corr'].ffill()
+
+    # cointegration
     model = RollingOLS(
         endog=np.log(signals['asset1']),
         exog=np.log(signals['asset2']),
         window=lookback_period,
     )
     model_fit = model.fit()
-    signals["gamma"] = model_fit.params
-    signals["spread"] = np.log(signals['asset1']) - signals["gamma"] * np.log(signals['asset2'])
+    gamma = [np.nan] * signals.shape[0]
+    gamma_lst = model_fit.params.to_numpy().reshape(-1).tolist()
+    for i in range(lookback_period-1, signals.shape[0], recalibration_interval):
+        gamma[i] = gamma_lst[i]
+    signals['gamma'] = gamma
+    signals['gamma_ffill'] = signals['gamma'].ffill()
+    signals['gamma_bfill'] = signals['gamma'].bfill()
+    signals['spread'] = np.log(signals['asset1']) - signals["gamma_ffill"] * np.log(signals['asset2'])
+    signals['spread_bfill'] = np.log(signals['asset1']) - signals["gamma_bfill"] * np.log(signals['asset2'])
 
-    # calculate z-score and define upper and lower thresholds
-    signals['z'] = zscore(signals["spread"])
+    # This code will crash for unknown reasons
+    # signals['adf_pvalue'] = signals['spread'].rolling(lookback_period).apply(
+    #     lambda x: adfuller(x, autolag="AIC")[1])
+
+    adf_pvalue = [np.nan] * signals.shape[0]
+    for i in range(lookback_period-1, signals.shape[0], recalibration_interval):
+        p = adfuller(
+            signals['spread_bfill'].iloc[i+1-lookback_period:i+1], autolag="AIC")[1]
+        if isinstance(p, float):
+            adf_pvalue[i] = p
+    signals['adf_pvalue'] = adf_pvalue
+    signals['adf_pvalue'] = signals['adf_pvalue'].ffill()
+
+    # calculate z-score
+    signals['spread_zscore'] = (
+        (signals["spread"] - signals["spread"].rolling(lookback_period).mean())
+        / signals["spread"].rolling(lookback_period).std()
+    )
 
     # create entry signal - short if z-score is greater than upper limit else long
     signals['entry_signals'] = 0
     signals['entry_signals'] = np.select(
-        [(entry_threshold < signals['z'])
-         & (signals['z'] < (entry_threshold + exit_threshold)/2)
-         & (signals['gamma'] < 10)
-         & (signals['gamma'] > 0.1),
-         (-(entry_threshold + exit_threshold)/2 < signals['z'])
-         & (signals['z'] < -entry_threshold)
-         & (signals['gamma'] < 10)
-         & (signals['gamma'] > 0.1)],
+        [(entry_threshold < signals['spread_zscore'])
+         & (signals['spread_zscore'] < (entry_threshold + exit_threshold)/2)
+         & (signals['recalibration_date'] == 0)
+         & (signals['gamma_ffill'] > 0.1)
+         & (signals['adf_pvalue'] < cointegration_pvalue_entry_threshold)
+         & (signals['recalibration_corr'] > correlation_threshold),
+         (-(entry_threshold + exit_threshold)/2 < signals['spread_zscore'])
+         & (signals['spread_zscore'] < -entry_threshold)
+         & (signals['recalibration_date'] == 0)
+         & (signals['gamma_ffill'] > 0.1)
+         & (signals['adf_pvalue'] < cointegration_pvalue_entry_threshold)
+         & (signals['recalibration_corr'] > correlation_threshold)],
         [-1, 1],
         default=0)
 
     # Create exit signal
-    signals['exit_signals'] = 0
-    signals['exit_signals'] = np.where(
-         (exit_threshold < signals['z'])
-         | (-exit_threshold > signals['z'])
-         | (signals['gamma'] < 0),
+    signals['exit_long1_short2_signals'] = 0
+    signals['exit_long1_short2_signals'] = np.where(
+         (signals['recalibration_date'] == 1)
+         | (signals['spread_zscore'] >= 0)
+         | (signals['spread_zscore'] < -exit_threshold),
+         1, 0)
+
+    signals['exit_short1_long2_signals'] = 0
+    signals['exit_short1_long2_signals'] = np.where(
+         (signals['recalibration_date'] == 1)
+         | (signals['spread_zscore'] <= 0)
+         | (signals['spread_zscore'] > exit_threshold),
          1, 0)
 
     # shares to buy for each position
-    q1 = capital_per_entry // signals['asset1']
-    q2 = capital_per_entry // (signals['asset2'] * signals['gamma'])
     signals['qty1'] = np.select(
-        [q1 <= q2, q1 > q2],
-        [q1, q2 // signals['gamma']],
+        [signals['gamma_ffill'] <= 1, signals['gamma_ffill'] > 1],
+        [capital_per_entry // signals['asset1'],
+         capital_per_entry / signals['gamma_ffill'] // signals['asset1']],
         default=0)
     signals['qty2'] = np.select(
-        [q1 <= q2, q1 > q2],
-        [(q1 * signals['gamma']).apply(
-            lambda x: int(x) if not np.isnan(x) else x), q2],
+        [signals['gamma_ffill'] <= 1, signals['gamma_ffill'] > 1],
+        [capital_per_entry * signals['gamma_ffill'] // signals['asset2'],
+         capital_per_entry // signals['asset2']],
         default=0)
 
     # calculate position and pnl
@@ -126,13 +177,19 @@ def run_pairs(
     qty1 = [0] * signals.shape[0]
     qty2 = [0] * signals.shape[0]
     for i, (timestamp, row) in enumerate(signals.iterrows()):
+        if i < lookback_period-1:
+            continue
+
         entry_signals = row['entry_signals']
-        exit_signals = row['exit_signals']
+        exit_long1_short2_signals = row['exit_long1_short2_signals']
+        exit_short1_long2_signals = row['exit_short1_long2_signals']
 
-        if entry_signals and exit_signals:
-            raise ValueError("entry and exit signals coexist!")
+        if entry_signals == 1 and exit_long1_short2_signals:
+            raise ValueError("entry and exit long1|short2 signals coexist!")
+        if entry_signals == -1 and exit_short1_long2_signals:
+            raise ValueError("entry and exit short1|long2 signals coexist!")
 
-        if i == 0:
+        if i == lookback_period-1:
             prev_position = 0
             prev_qty1 = 0
             prev_qty2 = 0
@@ -145,7 +202,11 @@ def run_pairs(
             position[i] = entry_signals
             qty1[i] = row['qty1']
             qty2[i] = row['qty2']
-        elif prev_position != 0 and exit_signals:
+        elif prev_position == 1 and exit_long1_short2_signals:
+            position[i] = 0
+            qty1[i] = 0
+            qty2[i] = 0
+        elif prev_position == -1 and exit_short1_long2_signals:
             position[i] = 0
             qty1[i] = 0
             qty2[i] = 0
@@ -160,7 +221,7 @@ def run_pairs(
 
     pnl = [0] * signals.shape[0]
     for i, (timestamp, row) in enumerate(signals.iterrows()):
-        if i == 0:
+        if i < lookback_period - 1:
             continue
         qty1 = row['qty1']
         qty2 = row['qty2']
@@ -188,12 +249,15 @@ def run_pairs(
 
 def run_strategy(override_indicator_cfg=None):
     """Run strategy for portfolio"""
+    # Load default parameters
+    with open("strategies/pairs_strategy/params.json", "r") as f:
+        params = json.load(f)
+    # Override parameters
     if override_indicator_cfg is not None:
-        entry_threshold = override_indicator_cfg['params']['entry_threshold']
-        exit_threshold = override_indicator_cfg['params']['exit_threshold']
-    else:
-        entry_threshold = 1.5
-        exit_threshold = 2.5
+        for k, v in override_indicator_cfg['params'].items():
+            params[k] = v
+
+    # Instruments
     stock_list = [
         Currency(
             code="BTC.USD",
@@ -226,23 +290,41 @@ def run_strategy(override_indicator_cfg=None):
             security_name="XRP.USD",
             exchange=Exchange.SMART),
     ]
-    start = datetime(2020, 12, 15, 0, 0, 0)
+    data_start = datetime(2020, 11, 15, 0, 0, 0)
+    start = datetime(2021, 1, 1, 0, 0, 0)
     end = datetime(2021, 12, 31, 23, 59, 59)
 
     # Load data
-    data = load_data(stock_list, start, end)
+    data = load_data(stock_list, data_start, start, end, params["lookback_period"])
     security_codes = [s.code for s in stock_list]
     security_pairs = list(itertools.combinations(security_codes, 2))
 
+    # security_pairs = [
+    #     ('BTC.USD', 'EOS.USD'),
+    #     ('BTC.USD', 'ETH.USD'),
+    #     ('BTC.USD', 'LTC.USD'),
+    #     ('BTC.USD', 'TRX.USD'),
+    #     ('BTC.USD', 'XRP.USD'),
+    #     ('EOS.USD', 'ETH.USD'),
+    #     ('EOS.USD', 'LTC.USD'),
+    #     ('EOS.USD', 'TRX.USD'),
+    #     ('EOS.USD', 'XRP.USD'),
+    #     ('ETH.USD', 'LTC.USD'),
+    #     ('ETH.USD', 'TRX.USD'),
+    #     ('ETH.USD', 'XRP.USD'),
+    #     ('LTC.USD', 'TRX.USD'),
+    #     ('LTC.USD', 'XRP.USD'),
+    #     ('TRX.USD', 'XRP.USD')
+    # ]
+
     portfolio_pnl = None
-    for security_pair in security_pairs:
-        # print(security_pair)
+    for i, security_pair in enumerate(security_pairs):
+        # print(i, security_pair)
         pair_pnl = run_pairs(
             data=data,
             asset1=security_pair[0],
             asset2=security_pair[1],
-            entry_threshold=entry_threshold,
-            exit_threshold=exit_threshold
+            **params
         )
         pair_pnl.name = "|".join(security_pair)
         if portfolio_pnl is None:
@@ -258,9 +340,8 @@ if __name__ == "__main__":
     df = run_strategy(
         override_indicator_cfg=
         {'params':
-             {'entry_threshold': 1.4,
-              'exit_threshold': 2.3,
-              }
+             {'entry_threshold': 1.4055718649894686,
+              'exit_threshold': 3.1614296858576507}
          },
     )
     print()

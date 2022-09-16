@@ -2,7 +2,7 @@
 # @Time    : 9/6/2022 4:45 PM
 # @Author  : Joseph Chen
 # @Email   : josephchenhk@gmail.com
-# @FileName: main_cta.py
+# @FileName: main_pairs.py
 
 """
 Copyright (C) 2020 Joseph Chen - All Rights Reserved
@@ -38,8 +38,8 @@ def run_strategy(**kwargs):
          datetime(1970, 1, 1, 23, 59, 59)],
     ]
     gateway_name = "Backtest"
-    start = datetime(2022, 1, 1, 0, 0, 0)
-    end = datetime(2022, 8, 10, 23, 59, 59)
+    start = datetime(2021, 1, 1, 0, 0, 0)
+    end = datetime(2021, 12, 31, 23, 59, 59)
 
     stock_list = [
         Currency(
@@ -86,7 +86,8 @@ def run_strategy(**kwargs):
             "ETH.USD": trading_sessions,
             "LTC.USD": trading_sessions,
             "TRX.USD": trading_sessions,
-            "XRP.USD": trading_sessions},
+            "XRP.USD": trading_sessions
+        },
     )
 
     gateway.SHORT_INTEREST_RATE = 0.0
@@ -112,7 +113,8 @@ def run_strategy(**kwargs):
             "ETH.USD": trading_sessions,
             "LTC.USD": trading_sessions,
             "TRX.USD": trading_sessions,
-            "XRP.USD": trading_sessions},
+            "XRP.USD": trading_sessions
+        },
         init_strategy_cash={gateway_name: init_capital},
         init_strategy_position={gateway_name: init_position},
         **kwargs
@@ -148,4 +150,11 @@ def run_strategy(**kwargs):
     )
 
 if __name__ == "__main__":
-    run_strategy()
+    df = run_strategy(
+        override_indicator_cfg=
+        {'params':
+             {'entry_threshold': 1.2634103780595516,
+              'exit_threshold': 3.7000115484046163}
+         },
+    )
+    print()

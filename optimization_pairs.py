@@ -2,7 +2,7 @@
 # @Time    : 10/9/2022 11:36 am
 # @Author  : Joseph Chen
 # @Email   : josephchenhk@gmail.com
-# @FileName: optimization_pair.py
+# @FileName: optimization_pairs.py
 
 """
 Copyright (C) 2020 Joseph Chen - All Rights Reserved
@@ -32,22 +32,24 @@ def objective(args):
         )
         df_daily = df.set_index('datetime').resample('D').agg(
             {"portfolio_value": "last"}).dropna()
-        return -sharp_ratio(
+        sr = sharp_ratio(
             returns=df_daily["portfolio_value"].pct_change().dropna().to_numpy()
         )
+        tot_r = df_daily["portfolio_value"].iloc[-1] / df["portfolio_value"].iloc[0] - 1.0
+        return -min(max(sr, 0), 1.8) * tot_r
 
 # define a search space
 from hyperopt import hp
 space = hp.choice('a',
     [
         ('case 1',
-            hp.uniform('entry_threshold', 1.3, 1.96),
-            hp.uniform('exit_threshold', 2.0, 3.0),
+            hp.uniform('entry_threshold', 0.5, 2.0),
+            hp.uniform('exit_threshold', 2.01, 4.0),
          )
     ])
 
 # minimize the objective over the space
 from hyperopt import fmin, tpe
-best = timeit(fmin)(objective, space, algo=tpe.suggest, max_evals=30)
+best = timeit(fmin)(objective, space, algo=tpe.suggest, max_evals=25)
 print(best)
 print()

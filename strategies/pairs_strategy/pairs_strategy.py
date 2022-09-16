@@ -72,7 +72,6 @@ class PairsStrategy(BaseStrategy):
 
         # initialize strategy parameters
         self.sleep_time = 0
-        self.last_candidate_security_pairs = []
         self.current_candidate_security_pairs = []
         self.recalibration_date = max(
             self.engine.gateways[gn].market_datetime
@@ -84,7 +83,10 @@ class PairsStrategy(BaseStrategy):
         self.security_pairs = {}
         self.security_pairs_number_of_entry = {}
         self.security_pairs_quantity_of_entry = {}
-        self.security_pairs_entry_spreads = {}  # mean, std
+        self.security_pairs_regression_params = {}
+
+        self.security_pairs_spread = {}
+
         for gateway_name in self.securities:
             security_codes[gateway_name] = [
                 s.code for s in self.securities[gateway_name]]
@@ -98,15 +100,151 @@ class PairsStrategy(BaseStrategy):
             self.security_pairs_quantity_of_entry[gateway_name] = {
                 k: {"long1_short2": [], "short1_long2": []}
                 for k in self.security_pairs[gateway_name]}
-            self.security_pairs_entry_spreads[gateway_name] = {
-                k: {"long1_short2": [], "short1_long2": []}
+            self.security_pairs_regression_params[gateway_name] = {
+                k: {"gamma": None, "mu": None, "adf_pvalue": None}
                 for k in self.security_pairs[gateway_name]}
+            self.security_pairs_spread[gateway_name] = {
+                k: [] for k in self.security_pairs[gateway_name]}
+
             for security in self.securities[gateway_name]:
                 self.lookback_period[gateway_name][security] = self.params[
                     "lookback_period"]
                 self.ohlcv[gateway_name][
                     security] = self.request_historical_ohlcv(
                     gateway_name=gateway_name, security=security)
+
+        # recalibration at the begining
+        self.recalibration()
+
+    def recalibration(self):
+        # Clear exsiting positions
+        for gateway_name in self.engine.gateways:
+            for security_pair in self.security_pairs_quantity_of_entry[
+                    gateway_name]:
+
+                # # keep the position if it is still a candidate pair
+                # if security_pair in self.current_candidate_security_pairs:
+                #     continue
+
+                # Clear all positions on recalibration date
+                # clear position if it is no longer a candidate pair
+                security1, security2 = list(map(
+                    self.get_security_from_security_code, security_pair))
+                for qty1, qty2 in self.security_pairs_quantity_of_entry[
+                        gateway_name][security_pair]["long1_short2"]:
+                    self.send_order(
+                        security=security1,
+                        quantity=qty1,
+                        direction=Direction.SHORT,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name
+                    )
+                    self.send_order(
+                        security=security2,
+                        quantity=qty2,
+                        direction=Direction.LONG,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name
+                    )
+                self.security_pairs_number_of_entry[gateway_name][
+                    security_pair]["long1_short2"] = 0
+                self.security_pairs_quantity_of_entry[gateway_name][
+                    security_pair]["long1_short2"] = []
+
+                for qty1, qty2 in self.security_pairs_quantity_of_entry[
+                        gateway_name][security_pair]["short1_long2"]:
+                    self.send_order(
+                        security=security1,
+                        quantity=qty1,
+                        direction=Direction.LONG,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name
+                    )
+                    self.send_order(
+                        security=security2,
+                        quantity=qty2,
+                        direction=Direction.SHORT,
+                        offset=Offset.CLOSE,
+                        order_type=OrderType.MARKET,
+                        gateway_name=gateway_name
+                    )
+                self.security_pairs_number_of_entry[gateway_name][
+                    security_pair]["short1_long2"] = 0
+                self.security_pairs_quantity_of_entry[gateway_name][
+                    security_pair]["short1_long2"] = []
+
+                # reset regression params
+                self.security_pairs_regression_params[gateway_name][
+                    security_pair]["gamma"] = None
+                self.security_pairs_regression_params[gateway_name][
+                    security_pair]["mu"] = None
+                self.security_pairs_regression_params[gateway_name][
+                    security_pair]["adf_pvalue"] = None
+
+        # find out candidate pairs
+        self.current_candidate_security_pairs = []
+        for gateway_name in self.engine.gateways:
+            for security_pair in self.security_pairs[gateway_name]:
+                security1, security2 = list(map(
+                    self.get_security_from_security_code, security_pair))
+
+                # Correlation
+                logS1 = np.array([np.log(b.close) for b in
+                                  self.ohlcv[gateway_name][security1]])
+                logS2 = np.array([np.log(b.close) for b in
+                                  self.ohlcv[gateway_name][security2]])
+                corr = np.corrcoef(logS1, logS2)[0][1]
+
+                # Cointegration
+                # A = np.array([logS2, np.ones_like(logS2)])
+                # w = np.linalg.lstsq(A.T, logS1, rcond=None)[0]
+                # gamma, mu = w
+
+                w, _, _, _ = np.linalg.lstsq(
+                    logS2[:, np.newaxis], logS1, rcond=None)
+                gamma = w[0]
+                mu = 0
+
+                if len(
+                        self.security_pairs_spread[gateway_name][security_pair]) == 0:
+                    spread = logS1 - gamma * logS2 - mu
+                    self.security_pairs_spread[gateway_name][security_pair] = list(
+                        spread)
+                else:
+                    # we obtain new gamma, thus refreshing the spreads
+                    n = self.params["recalibration_interval"]
+                    assert n >= 1, "recalibration_interval should >= 1!"
+                    self.security_pairs_spread[gateway_name][
+                        security_pair][-n:] = (
+                        logS1[-n:] - gamma * logS2[-n:] - mu
+                    )
+                    spread = np.array(
+                        self.security_pairs_spread[gateway_name][security_pair])
+                adf = adfuller(spread, autolag="AIC")
+                adf_pvalue = adf[1]
+
+                self.security_pairs_regression_params[gateway_name][
+                    security_pair]["gamma"] = gamma
+                self.security_pairs_regression_params[gateway_name][
+                    security_pair]["mu"] = mu
+                self.security_pairs_regression_params[gateway_name][
+                    security_pair]["adf_pvalue"] = adf_pvalue
+
+                if (
+                        corr > self.params["correlation_threshold"]
+                        and adf_pvalue < self.params["cointegration_pvalue_entry_threshold"]
+                        and 0.1 < gamma
+                ):
+                    self.current_candidate_security_pairs.append(
+                        security_pair)
+
+        # Set next re-calibration date
+        self.recalibration_date = self.recalibration_date + timedelta(
+            seconds=self.params["recalibration_interval"] * TIME_STEP / 1000
+        )
 
     def on_bar(self, cur_data: Dict[str, Dict[Security, Bar]]):
 
@@ -118,112 +256,23 @@ class PairsStrategy(BaseStrategy):
         self.engine.log.info(cur_data)
         self._cur_data = cur_data
 
-        cur_datetime = self.get_current_datetime(cur_data)
-
-        # Recalibrate the parameters
-        if cur_datetime >= self.recalibration_date:
-
-            # find out candidate pairs
-            self.last_candidate_security_pairs = self.current_candidate_security_pairs[:]
-            self.current_candidate_security_pairs = []
-            for gateway_name in self.engine.gateways:
-                if gateway_name not in cur_data:
-                    continue
-                for security_pair in self.security_pairs[gateway_name]:
-                    security1, security2 = list(map(
-                        self.get_security_from_security_code, security_pair))
-                    corr = np.corrcoef(
-                        [np.log(b.close) for b in self.ohlcv[gateway_name][security1]],
-                        [np.log(b.close) for b in self.ohlcv[gateway_name][security2]]
-                    )[0][1]
-                    if corr > self.params["correlation_threshold"]:
-                        self.current_candidate_security_pairs.append(
-                            security_pair)
-
-            # Check whether the pair is still valid candidate pair
-            for gateway_name in self.engine.gateways:
-                if gateway_name not in cur_data:
-                    continue
-                for security_pair in self.security_pairs_quantity_of_entry[gateway_name]:
-                    # keep the position if it is still a candidate pair
-                    if security_pair in self.current_candidate_security_pairs:
-                        continue
-                    # clear position if it is no longer a candidate pair
-                    security1, security2 = list(map(
-                        self.get_security_from_security_code, security_pair))
-                    for qty1, qty2 in self.security_pairs_quantity_of_entry[
-                            gateway_name][security_pair]["long1_short2"]:
-                        self.send_order(
-                            security=security1,
-                            quantity=qty1,
-                            direction=Direction.SHORT,
-                            offset=Offset.CLOSE,
-                            order_type=OrderType.MARKET,
-                            gateway_name=gateway_name
-                        )
-                        self.send_order(
-                            security=security2,
-                            quantity=qty2,
-                            direction=Direction.LONG,
-                            offset=Offset.CLOSE,
-                            order_type=OrderType.MARKET,
-                            gateway_name=gateway_name
-                        )
-                    self.security_pairs_number_of_entry[gateway_name][
-                        security_pair]["long1_short2"] = 0
-                    self.security_pairs_quantity_of_entry[gateway_name][
-                        security_pair]["long1_short2"] = []
-                    self.security_pairs_entry_spreads[gateway_name][
-                        security_pair]["long1_short2"] = []
-
-                    for qty1, qty2 in self.security_pairs_quantity_of_entry[
-                            gateway_name][security_pair]["short1_long2"]:
-                        self.send_order(
-                            security=security1,
-                            quantity=qty1,
-                            direction=Direction.LONG,
-                            offset=Offset.CLOSE,
-                            order_type=OrderType.MARKET,
-                            gateway_name=gateway_name
-                        )
-                        self.send_order(
-                            security=security2,
-                            quantity=qty2,
-                            direction=Direction.SHORT,
-                            offset=Offset.CLOSE,
-                            order_type=OrderType.MARKET,
-                            gateway_name=gateway_name
-                        )
-                    self.security_pairs_number_of_entry[gateway_name][
-                        security_pair]["short1_long2"] = 0
-                    self.security_pairs_quantity_of_entry[gateway_name][
-                        security_pair]["short1_long2"] = []
-                    self.security_pairs_entry_spreads[gateway_name][
-                        security_pair]["short1_long2"] = []
-
-            # Set next re-calibration date
-            self.recalibration_date = self.recalibration_date + timedelta(
-                seconds=self.params["recalibration_interval"] * TIME_STEP / 1000
-            )
-
+        # Collect ohlcv data
         for gateway_name in self.engine.gateways:
-
             if gateway_name not in cur_data:
                 continue
-
-            self.engine.log.info(
-                f"strategy portfolio value: {self.get_strategy_portfolio_value(gateway_name)}\n"
-                f"strategy positions: {self.portfolios[gateway_name].position}")
-
-            # Find possible opportunities in every pair
             for security_pair in self.security_pairs[gateway_name]:
-
                 security1, security2 = list(map(
                     self.get_security_from_security_code, security_pair))
 
-                # Collect the ohlcv data
+                # validate current bar timestamps are aligned
                 bar1 = cur_data[gateway_name].get(security1)
                 bar2 = cur_data[gateway_name].get(security2)
+                assert bar1.datetime == bar2.datetime, (
+                    "Current ohlcv timestamp doesn't match: "
+                    f"{security1.code}|{security2.code}"
+                )
+
+                # Collect the ohlcv data
                 if (
                         bar1 is not None
                         and bar1.datetime > self.ohlcv[gateway_name][
@@ -247,31 +296,66 @@ class PairsStrategy(BaseStrategy):
                     ):
                         self.ohlcv[gateway_name][security2].pop(0)
 
-                union_candidate_security_pairs = list(set(
-                    self.current_candidate_security_pairs
-                    + self.last_candidate_security_pairs
-                ))
-                if (
-                    len(self.ohlcv[gateway_name][security1]) < self.params["lookback_period"]
-                    or len(self.ohlcv[gateway_name][security2]) < self.params["lookback_period"]
-                    or security_pair not in union_candidate_security_pairs
-                ):
-                    continue
+                # validate historical bars timestamps are aligned
+                bar1_first = self.ohlcv[gateway_name][security1][0]
+                bar1_last = self.ohlcv[gateway_name][security1][-1]
+                bar2_first = self.ohlcv[gateway_name][security2][0]
+                bar2_last = self.ohlcv[gateway_name][security2][-1]
+                assert (
+                    bar1_first.datetime == bar2_first.datetime
+                    and bar1_last.datetime == bar2_last.datetime
+                ), ("Historical ohlcv timestamp doesn't match: "
+                    f"{security1.code}|{security2.code}")
 
                 # Cointegration test
                 # log(S1) = gamma * log(S2) + mu + epsilon
                 # spread (epsilon) is expected to be mean-reverting
-                logS1 = np.array([np.log(b.close)
-                                  for b in self.ohlcv[gateway_name][security1]])
-                logS2 = np.array([np.log(b.close)
-                                  for b in self.ohlcv[gateway_name][security2]])
-                A = np.array([logS2, np.ones_like(logS2)])
-                w = np.linalg.lstsq(A.T, logS1, rcond=None)[0]
-                gamma, mu = w
+                logS1 = np.log(self.ohlcv[gateway_name][security1][-1].close)
+                logS2 = np.log(self.ohlcv[gateway_name][security2][-1].close)
+
                 # logS1_fit = gamma * logS2 + mu
-                spread = logS1 - gamma * logS2 - mu
-                adf = adfuller(spread, autolag="AIC")
-                adf_pvalue = adf[1]
+                # gamma, mu were obtained on recalibration date
+                gamma = self.security_pairs_regression_params[gateway_name][
+                    security_pair]["gamma"]
+                mu = self.security_pairs_regression_params[gateway_name][
+                    security_pair]["mu"]
+                # spread is updated with new prices, but gamma and mu are
+                # unchanged
+                self.security_pairs_spread[gateway_name][security_pair].append(
+                    logS1 - gamma * logS2 - mu
+                )
+                self.security_pairs_spread[gateway_name][security_pair].pop(0)
+
+        cur_datetime = self.get_current_datetime(cur_data)
+
+        # Recalibrate the parameters
+        if cur_datetime >= self.recalibration_date:
+            self.recalibration()
+
+        # Find possible opportunities in every pair
+        for gateway_name in self.engine.gateways:
+            # if gateway_name not in cur_data:
+            #     continue
+
+            self.engine.log.info(
+                f"strategy portfolio value: {self.get_strategy_portfolio_value(gateway_name)}\n"
+                f"strategy positions: {self.portfolios[gateway_name].position}")
+
+            for security_pair in self.security_pairs[gateway_name]:
+
+                security1, security2 = list(map(
+                    self.get_security_from_security_code, security_pair))
+
+                if (
+                    len(self.ohlcv[gateway_name][security1]) < self.params["lookback_period"]
+                    or len(self.ohlcv[gateway_name][security2]) < self.params["lookback_period"]
+                    or security_pair not in self.current_candidate_security_pairs
+                ):
+                    continue
+
+                spread = np.array(
+                    self.security_pairs_spread[gateway_name][security_pair])
+
                 spread_mean = spread.mean()
                 spread_std = spread.std()
                 spread_zscore = (spread[-1] - spread_mean) / spread_std
@@ -281,19 +365,11 @@ class PairsStrategy(BaseStrategy):
                     0 <= self.security_pairs_number_of_entry[gateway_name][security_pair]["long1_short2"]
                     < self.params["max_number_of_entry"]
                     and self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"] == 0
-                    and (self.recalibration_date - cur_datetime).total_seconds() / 3600. >= 24
-                    and adf_pvalue < self.params["cointegration_pvalue_entry_threshold"]
-                    and security_pair in self.current_candidate_security_pairs
-                    and 0.1 < gamma < 10
                 )
                 can_entry_short1_long2 = (
                     0 <= self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"]
                     < self.params["max_number_of_entry"]
                     and self.security_pairs_number_of_entry[gateway_name][security_pair]["long1_short2"] == 0
-                    and (self.recalibration_date - cur_datetime).total_seconds() / 3600. >= 24
-                    and adf_pvalue < self.params["cointegration_pvalue_entry_threshold"]
-                    and security_pair in self.current_candidate_security_pairs
-                    and 0.1 < gamma < 10
                 )
                 entry_short1_long2 = (
                     spread_zscore > self.params["entry_threshold"]
@@ -309,41 +385,13 @@ class PairsStrategy(BaseStrategy):
                     self.security_pairs_number_of_entry[gateway_name][security_pair]["long1_short2"] > 0)
                 can_exit_short1_long2 = (
                     self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"] > 0)
-                exit_long1_short2 = []
-                for i, (entry_spread_mean, entry_spread_std) in enumerate(
-                        self.security_pairs_entry_spreads[
-                            gateway_name][security_pair]["long1_short2"]):
-                    entry_spread_zscore = (
-                        spread[-1] - entry_spread_mean) / entry_spread_std
-                    if (
-                            entry_spread_zscore >= 0
-                            or entry_spread_zscore < -self.params[
-                                "exit_threshold"]
-                    ):
-                        exit_long1_short2.append(i)
-                exit_short1_long2 = []
-                for i, (entry_spread_mean, entry_spread_std) in enumerate(
-                        self.security_pairs_entry_spreads[
-                            gateway_name][security_pair]["short1_long2"]):
-                    entry_spread_zscore = (
-                        spread[-1] - entry_spread_mean) / entry_spread_std
-                    if (
-                            entry_spread_zscore <= 0
-                            or entry_spread_zscore > self.params[
-                                "exit_threshold"]
-                    ):
-                        exit_short1_long2.append(i)
-                exit_all_short1_long2 = (
-                    spread_zscore > self.params["exit_threshold"]
-                    or adf_pvalue > self.params[
-                        "cointegration_pvalue_exit_threshold"]
-                    or gamma <= 0
+                exit_long1_short2 = (
+                    spread_zscore >= 0
+                    or spread_zscore < -self.params["exit_threshold"]
                 )
-                exit_all_long1_short2 = (
-                    spread_zscore < -self.params["exit_threshold"]
-                    or adf_pvalue > self.params[
-                        "cointegration_pvalue_exit_threshold"]
-                    or gamma <= 0
+                exit_short1_long2 = (
+                    spread_zscore <= 0
+                    or spread_zscore > self.params["exit_threshold"]
                 )
 
                 # Take trades
@@ -351,7 +399,8 @@ class PairsStrategy(BaseStrategy):
                         can_entry_long1_short2
                         and entry_long1_short2
                 ):
-                    self.engine.log.info("entry_long1_short2:")
+                    self.engine.log.info(
+                        f"entry_long1_short2: {security1.code}|{security2.code}")
                     qty1, qty2 = self.calc_entry_quantities(bar1, bar2, gamma)
                     self.entry_long1_short2(
                         no=self.security_pairs_number_of_entry[gateway_name][
@@ -371,15 +420,12 @@ class PairsStrategy(BaseStrategy):
                         security_pair][
                         "long1_short2"].append(
                         (qty1, qty2))
-                    self.security_pairs_entry_spreads[gateway_name][
-                        security_pair][
-                        "long1_short2"].append(
-                        (spread_mean, spread_std))
                 elif (
                         can_entry_short1_long2
                         and entry_short1_long2
                 ):
-                    self.engine.log.info("entry_short1_long2")
+                    self.engine.log.info(
+                        f"entry_short1_long2 {security1.code}|{security2.code}")
                     qty1, qty2 = self.calc_entry_quantities(bar1, bar2, gamma)
                     self.entry_short1_long2(
                         no=self.security_pairs_number_of_entry[gateway_name][
@@ -399,15 +445,12 @@ class PairsStrategy(BaseStrategy):
                         security_pair][
                         "short1_long2"].append(
                         (qty1, qty2))
-                    self.security_pairs_entry_spreads[gateway_name][
-                        security_pair][
-                        "short1_long2"].append(
-                        (spread_mean, spread_std))
                 elif (
                         can_exit_long1_short2
-                        and exit_all_long1_short2
+                        and exit_long1_short2
                 ):
-                    self.engine.log.info("exit_all_long1_short2")
+                    self.engine.log.info(
+                        f"exit_all_long1_short2 {security1.code}|{security2.code}")
                     qty1, qty2 = self.get_existing_quantities(
                         gateway_name=gateway_name,
                         security_pair=security_pair,
@@ -430,51 +473,12 @@ class PairsStrategy(BaseStrategy):
                     self.security_pairs_quantity_of_entry[gateway_name][
                         security_pair][
                         "long1_short2"] = []
-                    self.security_pairs_entry_spreads[gateway_name][
-                        security_pair][
-                        "long1_short2"] = []
-                elif (
-                        can_exit_long1_short2
-                        and len(exit_long1_short2) > 0
-                ):
-                    self.engine.log.info("exit_long1_short2")
-                    for i in exit_long1_short2:
-                        qty1, qty2 = (
-                            self.security_pairs_quantity_of_entry[gateway_name][
-                                security_pair]["long1_short2"][i]
-                        )
-                        self.exit_long1_short2(
-                            no=self.security_pairs_number_of_entry[gateway_name][
-                                security_pair]["long1_short2"],
-                            gateway_name=gateway_name,
-                            security1=security1,
-                            bar1=bar1,
-                            qty1=qty1,
-                            security2=security2,
-                            bar2=bar2,
-                            qty2=qty2
-                        )
-                    self.security_pairs_number_of_entry[gateway_name][
-                        security_pair]["long1_short2"] -= len(exit_long1_short2)
-                    self.security_pairs_quantity_of_entry[gateway_name][
-                        security_pair]["long1_short2"] = [
-                        q for i, q in enumerate(
-                            self.security_pairs_quantity_of_entry[gateway_name][
-                                security_pair]["long1_short2"])
-                        if i not in exit_long1_short2
-                    ]
-                    self.security_pairs_entry_spreads[gateway_name][
-                        security_pair]["long1_short2"] = [
-                        q for i, q in enumerate(
-                            self.security_pairs_entry_spreads[gateway_name][
-                                security_pair]["long1_short2"])
-                        if i not in exit_long1_short2
-                    ]
                 elif (
                         can_exit_short1_long2
-                        and exit_all_short1_long2
+                        and exit_short1_long2
                 ):
-                    self.engine.log.info("exit_all_short1_long2")
+                    self.engine.log.info(
+                        f"exit_all_short1_long2 {security1.code}|{security2.code}")
                     qty1, qty2 = self.get_existing_quantities(
                         gateway_name=gateway_name,
                         security_pair=security_pair,
@@ -497,46 +501,6 @@ class PairsStrategy(BaseStrategy):
                     self.security_pairs_quantity_of_entry[gateway_name][
                         security_pair][
                         "short1_long2"] = []
-                    self.security_pairs_entry_spreads[gateway_name][
-                        security_pair][
-                        "short1_long2"] = []
-                elif (
-                        can_exit_short1_long2
-                        and len(exit_short1_long2) > 0
-                ):
-                    self.engine.log.info("exit_short1_long2")
-                    for i in exit_short1_long2:
-                        qty1, qty2 = (
-                            self.security_pairs_quantity_of_entry[gateway_name][
-                                security_pair]["short1_long2"][i]
-                        )
-                        self.exit_short1_long2(
-                            no=self.security_pairs_number_of_entry[gateway_name][
-                                security_pair]["short1_long2"],
-                            gateway_name=gateway_name,
-                            security1=security1,
-                            bar1=bar1,
-                            qty1=qty1,
-                            security2=security2,
-                            bar2=bar2,
-                            qty2=qty2
-                        )
-                    self.security_pairs_number_of_entry[gateway_name][
-                        security_pair]["short1_long2"] -= len(exit_short1_long2)
-                    self.security_pairs_quantity_of_entry[gateway_name][
-                        security_pair]["short1_long2"] = [
-                        q for i, q in enumerate(
-                            self.security_pairs_quantity_of_entry[gateway_name][
-                                security_pair]["short1_long2"])
-                        if i not in exit_short1_long2
-                    ]
-                    self.security_pairs_entry_spreads[gateway_name][
-                        security_pair]["short1_long2"] = [
-                        q for i, q in enumerate(
-                            self.security_pairs_entry_spreads[gateway_name][
-                                security_pair]["short1_long2"])
-                        if i not in exit_short1_long2
-                    ]
 
     def request_historical_ohlcv(
             self,
@@ -633,20 +597,35 @@ class PairsStrategy(BaseStrategy):
               for gn in cur_data]
         )))
 
+    # def calc_entry_quantities(
+    #         self,
+    #         bar1: Bar,
+    #         bar2: Bar,
+    #         gamma: float,
+    # ) -> Tuple[int]:
+    #     q1 = int(self.params["capital_per_entry"] / bar1.close)
+    #     q2 = int(self.params["capital_per_entry"] / bar2.close / gamma)
+    #     if q1 <= q2:
+    #         qty1 = q1
+    #         qty2 = int(q1 * gamma)
+    #     else:
+    #         qty1 = q2
+    #         qty2 = int(q2 * gamma)
+    #     return qty1, qty2
+
     def calc_entry_quantities(
             self,
             bar1: Bar,
             bar2: Bar,
             gamma: float,
     ) -> Tuple[int]:
-        q1 = int(self.params["capital_per_entry"] / bar1.close)
-        q2 = int(self.params["capital_per_entry"] / bar2.close / gamma)
-        if q1 <= q2:
-            qty1 = q1
-            qty2 = int(q1 * gamma)
+        assert gamma > 0, "gamma should be positive!"
+        if gamma <= 1:
+            qty1 = int(self.params["capital_per_entry"] / bar1.close)
+            qty2 = int(self.params["capital_per_entry"] * gamma / bar2.close)
         else:
-            qty1 = q2
-            qty2 = int(q2 * gamma)
+            qty1 = int(self.params["capital_per_entry"] / gamma / bar1.close)
+            qty2 = int(self.params["capital_per_entry"] / bar2.close)
         return qty1, qty2
 
     def get_existing_quantities(

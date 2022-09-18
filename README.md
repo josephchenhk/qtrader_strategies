@@ -193,14 +193,15 @@ A summary of the strategy parameters is shown below:
 
 The objective of the strategy is to maximize the 
 Sharpe ratio and the total return. Therefore, the objective
-function is defined as:
+function is defined as minimizing $f$:
 
 $$
-f(entry_threshold, exit_threshold) = \min(\max(sr, 0), 0.5) * tot_r
+f(\text{entry_threshold}, \text{exit_threshold}) 
+= -\min(\max(\text{sr}, 0), 0.5) * \text{tot_r}
 $$
 
 where $sr$ is the Sharpe ratio, and $tot_r$ is the total
-return.
+return. 
 
 ## 5-min Interval
 
@@ -209,7 +210,46 @@ means we have a training window (lookback window) of 80 hours
 ($5 * 960 / 60 = 80$), and a testing window (trading window)
 of 40 hours.
 
-### Training Period
+In the training dataset (in-sample), we trained the model 
+and selected the cryptocurrency pairs with negative best loss 
+as we are minimizing the objective function. There are 7 
+pairs that are selected. And the strategy will be tested on both 
+in-sample and out-of-sample datasets.
+
+```html
+{
+    ('EOS.USD', 'ETH.USD'): {
+        'entry_threshold': 1.5000392943615142, 
+        'exit_threshold': 3.376602464111785, 
+        'best_loss': -0.03475020027151503}, 
+    ('TRX.USD', 'XRP.USD'): {
+        'entry_threshold': 1.551051140512154, 
+        'exit_threshold': 3.017624989640105, 
+        'best_loss': -0.08643681591995156}, 
+    ('BTC.USD', 'EOS.USD'): {
+        'entry_threshold': 1.9633378226348694, 
+        'exit_threshold': 3.329967191852652, 
+        'best_loss': -0.017663755051963572}, 
+    ('EOS.USD', 'LTC.USD'): {
+        'entry_threshold': 1.7693316696798091,
+        'exit_threshold': 2.5532912245203043, 
+        'best_loss': -0.016165476679308892}, 
+    ('BTC.USD', 'LTC.USD'): {
+        'entry_threshold': 1.8775675045977969, 
+        'exit_threshold': 2.670390189458025, 
+        'best_loss': -0.007816275748584213}, 
+    ('ETH.USD', 'LTC.USD'): {
+        'entry_threshold': 1.762856210892485, 
+        'exit_threshold': 2.707378771966564, 
+        'best_loss': -0.014213080160328405}, 
+    ('BTC.USD', 'ETH.USD'): {
+        'entry_threshold': 1.9332887682355882, 
+        'exit_threshold': 3.407991025881241, 
+        'best_loss': -0.005658161919799375}
+}
+```
+
+### In-sample
 Below is the Backtest result from 2021-01-01 to 2021-12-31: 
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/5min_in_sample.jpeg "5min_in_sample")
 
@@ -217,14 +257,16 @@ Below is the Backtest result from 2021-01-01 to 2021-12-31:
 ____________Performance____________
 Start Date: 2021-01-01
 End Date: 2022-01-01
-Number of Instruments: 6
+Number of Trading Days: 365
+Number of Instruments: 7
 Number of Trades: 168
 Total Return: 6.38%
-Sharpe Ratio: 0.80
+Annualized Return: 6.38%
+Sharpe Ratio: 0.96
 Rolling Maximum Drawdown: -5.39%
 ```
 
-### Testing Period
+### Out-of-sample
 
 Below is the Backtest result from 2021-01-01 to 2022-01-01: 
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/5min_out_of_sample.jpeg "5min_out_of_sample")
@@ -233,14 +275,204 @@ Below is the Backtest result from 2021-01-01 to 2022-01-01:
 ____________Performance____________
 Start Date: 2022-01-01
 End Date: 2022-08-01
-Number of Instruments: 6
+Number of Trading Days: 212
+Number of Instruments: 7
 Number of Trades: 89
 Total Return: 1.82%
-Sharpe Ratio: 0.68
+Annualized Return: 3.14%
+Sharpe Ratio: 0.82
 Rolling Maximum Drawdown: -3.00%
 ```
 
-## Future Work
+## 15-min Interval
+
+We then test the strategy in a 15-min interval. This
+means we have a training window (lookback window) of 10 days 
+($15 * 960 / (60 * 24) = 10$), and a testing window (trading window)
+of 5 days.
+
+As discussed, there are 5 pairs that 
+are selected. And the strategy will be tested on both 
+in-sample and out-of-sample datasets.
+
+```html
+{
+    ('EOS.USD', 'LTC.USD'): {
+        'entry_threshold': 1.85083364536054, 
+        'exit_threshold': 3.224360323840364, 
+        'best_loss': -0.047703687981827114}, 
+    ('EOS.USD', 'XRP.USD'): {
+        'entry_threshold': 1.8869138038036657, 
+        'exit_threshold': 2.9094095009860723, 
+        'best_loss': -0.046187517027634906}, 
+    ('BTC.USD', 'EOS.USD'): {
+        'entry_threshold': 1.8767472177155844, 
+        'exit_threshold': 2.6226223785191993, 
+        'best_loss': -6.446680549378299e-05}, 
+    ('EOS.USD', 'ETH.USD'): {
+        'entry_threshold': 1.603040067942517, 
+        'exit_threshold': 3.4874437489605867, 
+        'best_loss': -0.10111409247066716}, 
+    ('TRX.USD', 'XRP.USD'): {
+        'entry_threshold': 1.5092092690764671,
+        'exit_threshold': 2.912104597010566, 
+        'best_loss': -0.0025735030462288046}
+}
+```
+
+### In-sample
+Below is the Backtest result from 2021-01-01 to 2021-12-31: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/15min_in_sample.jpeg "15min_in_sample")
+
+```html
+____________Performance____________
+Start Date: 2021-01-01
+End Date: 2022-01-01
+Number of Trading Days: 365
+Number of Instruments: 5
+Number of Trades: 33
+Total Return: 8.14%
+Annualized Return: 8.14%
+Sharpe Ratio: 1.20
+Rolling Maximum Drawdown: -4.92%
+```
+
+### Out-of_sample
+
+Below is the Backtest result from 2021-01-01 to 2022-01-01: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/15min_out_of_sample.jpeg "15min_out_of_sample")
+
+```html
+____________Performance____________
+Start Date: 2022-01-01
+End Date: 2022-08-01
+Number of Trading Days: 212
+Number of Instruments: 5
+Number of Trades: 13
+Total Return: -8.47%
+Annualized Return: -14.59%
+Sharpe Ratio: -1.38
+Rolling Maximum Drawdown: -11.29%
+```
+
+## 60-min Interval
+
+We then test the strategy in a 60-min interval. This
+means we have a training window (lookback window) of 40 days 
+($60 * 960 / (60 * 24) = 40$), and a testing window (trading window)
+of 10 days.
+
+As discussed, there is one pair that 
+are selected. And the strategy will be tested on both 
+in-sample and out-of-sample datasets.
+
+```html
+{
+    ('BTC.USD', 'LTC.USD'): {
+        'entry_threshold': 1.8959144645762966, 
+        'exit_threshold': 2.9436715640836755, 
+        'best_loss': -0.08387009026604986}
+}
+```
+
+### In-sample
+Below is the Backtest result from 2021-01-01 to 2021-12-31: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/60min_in_sample.jpeg "60min_in_sample")
+
+```html
+____________Performance____________
+Start Date: 2021-01-01
+End Date: 2022-01-01
+Number of Trading Days: 365
+Number of Instruments: 1
+Number of Trades: 1
+Total Return: 16.77%
+Annualized Return: 16.77%
+Sharpe Ratio: 1.30
+Rolling Maximum Drawdown: -4.40%
+```
+
+### Out-of-sample
+
+Below is the Backtest result from 2021-01-01 to 2022-01-01: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/60min_out_of_sample.jpeg "60min_out_of_sample")
+
+```html
+____________Performance____________
+Start Date: 2022-01-01
+End Date: 2022-08-01
+Number of Trading Days: 212
+Number of Instruments: 1
+Number of Trades: 1
+Total Return: 7.72%
+Annualized Return: 13.28%
+Sharpe Ratio: 1.15
+Rolling Maximum Drawdown: -4.58%
+```
+
+## Summary & Future Work
+
+As can be seen, both the 5-min and 60-min intervals deliver
+positive returns in both in-sample and out-of-sample datasets.
+However, as the interval increases, the trading opportunities
+decrease. 
+
+<table>
+    <thead>
+        <tr>
+            <th rowspan=2>Interval</th>
+            <th colspan=2>Annualized Return</th>
+            <th colspan=2>Sharpe Ratio</th>
+            <th colspan=2>Maximum Drawdown</th>
+            <th colspan=2>Number of Trades</th>
+        </tr>
+        <tr>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td >5-min</td>
+            <td>6.38%</td>
+            <td>3.14%</td>
+            <td>0.96</td>
+            <td>0.82</td>
+            <td>-5.39%</td>
+            <td>-3.00%</td>
+            <td>168</td>
+            <td>89</td>
+        </tr>
+        <tr>
+            <td >15-min</td>
+            <td>8.14%</td>
+            <td>-14.59%</td>
+            <td>1.20</td>
+            <td>-1.38</td>
+            <td>-4.92%</td>
+            <td>-11.29%</td>
+            <td>33</td>
+            <td>13</td>
+        </tr>
+        <tr>
+            <td >60-min</td>
+            <td>16.77%</td>
+            <td>13.28%</td>
+            <td>1.30</td>
+            <td>1.15</td>
+            <td>-4.4%</td>
+            <td>-4.58%</td>
+            <td>1</td>
+            <td>1</td>
+        </tr>
+    </tbody>
+</table>
 
 There is a lot of work to be done to improve the strategy, which is 
 included but not limited to:
@@ -257,18 +489,17 @@ the parameters `entry_threshold` and `exit_threshold` regularly.
   `pandas_pairs.py`, which covers most of the features 
   in the model, and with much less execution time.
   
-- (3). Assign different parameters 
-  (`entry_threshold` and `exit_threshold`)
-  to different cryptocurrency pairs. 
-  
-- (4). Add an absolute stop loss to each traded pair
+- (3). Add an absolute stop loss to each traded pair
   to mitigate drawdowns.
 
-- (5). Consider the actual volume to have a better estimation of 
+- (4). Consider the actual volume to have a better estimation of 
 executed shares.
   
-- (6). Consider using total least squares intead of OLS
+- (5). Consider using total least squares intead of OLS
 to obtain the regression coefficients (hedge ratios).
   
-- (7). Consider transaction costs in the simulation.
+- (6). Consider transaction costs in the simulation.
+
+- (7). Consider different lookback window and trading window
+for different time intervals.
   

@@ -196,11 +196,11 @@ Sharpe ratio and the total return. Therefore, the objective
 function is defined as minimizing $f$:
 
 $$
-f(threshold_{entry}, threshold\{exit}) 
+f(entry\textunderscore threshold, exit\textunderscore threshold) 
 = -\min(\max(\text{SR}, 0), 0.5) * \text{TOTR}
 $$
 
-where $SR$ is the Sharpe ratio, and $TOTR$ is the total
+where $\text{SR}$ is the Sharpe ratio, and $\text{TOTR}$ is the total
 return. 
 
 ## 5-min Interval

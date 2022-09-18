@@ -18,6 +18,8 @@ this file. If not, please write to: josephchenhk@gmail.com
 #                                                                        #
 #                    Pairs Trading strategy                              #
 ##########################################################################
+import pickle
+import itertools
 from datetime import datetime
 
 import pandas as pd
@@ -39,7 +41,9 @@ def run_strategy(**kwargs):
     ]
     gateway_name = "Backtest"
     start = datetime(2021, 1, 1, 0, 0, 0)
-    end = datetime(2021, 12, 31, 23, 59, 59)
+    end = datetime(2022, 1, 1, 0, 0, 0)
+    # start = datetime(2022, 1, 1, 0, 0, 0)
+    # end = datetime(2022, 8, 1, 0, 0, 0)
 
     stock_list = [
         Currency(
@@ -74,6 +78,16 @@ def run_strategy(**kwargs):
             exchange=Exchange.SMART),
     ]
 
+    security_pairs = kwargs.get("security_pairs")
+    if security_pairs:
+        security_codes = []
+        [security_codes.extend(p) for p in security_pairs]
+        security_codes = list(set(security_codes))
+        stock_list = [s for s in stock_list if s.code in security_codes]
+    else:
+        security_pairs = list(
+            itertools.combinations([s.code for s in stock_list], 2))
+
     gateway = BacktestGateway(
         securities=stock_list,
         start=start,
@@ -100,7 +114,7 @@ def run_strategy(**kwargs):
     strategy_account = "PairStrategy"
     strategy_version = "1.0"
     init_position = Position()
-    init_capital = 1000000 * 15
+    init_capital = 1000000 * len(security_pairs)
 
     strategy = PairsStrategy(
         securities={gateway_name: stock_list},
@@ -150,11 +164,18 @@ def run_strategy(**kwargs):
     )
 
 if __name__ == "__main__":
-    df = run_strategy(
-        override_indicator_cfg=
-        {'params':
-             {'entry_threshold': 1.2634103780595516,
-              'exit_threshold': 3.7000115484046163}
-         },
-    )
-    print()
+    with open("opt_params.pkl", "rb") as f:
+        opt_params = pickle.load(f)
+        # select securities to trade
+        opt_params = {k: v for k, v in opt_params.items() if v["best_loss"] < 0}
+        security_pairs = [k for k, v in opt_params.items() if v["best_loss"] < 0]
+        df = run_strategy(
+            # override_indicator_cfg=
+            # {'params':
+            #      {'entry_threshold': 1.9512880891669317,
+            #       'exit_threshold': 2.1816070388851037}
+            #  },
+            opt_params=opt_params,
+            security_pairs=security_pairs
+        )
+    print("Backtest is done.")

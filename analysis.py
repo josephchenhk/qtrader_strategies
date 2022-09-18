@@ -15,9 +15,9 @@ this file. If not, please write to: josephchenhk@gmail.com
 """
 from datetime import datetime
 import ast
+import pickle
 
 import pandas as pd
-import matplotlib.pyplot as plt
 
 from qtrader.plugins.analysis.metrics import sharp_ratio
 from qtrader.plugins.analysis.metrics import rolling_maximum_drawdown
@@ -37,7 +37,15 @@ instruments = {
     }
 }
 
-result_df = pd.read_csv("results/2022-09-13 16-30-58.390740/result_pairs.csv")
+with open("saved_results/opt_params_5min.pkl", "rb") as f:
+    opt_params = pickle.load(f)
+    # select securities to trade
+    opt_params = {k: v for k, v in opt_params.items() if v["best_loss"] < 0}
+    print(opt_params)
+    number_instruments = len(opt_params)
+
+
+result_df = pd.read_csv("saved_results/5min_in_sample/result_pairs.csv")
 
 # # Plot normalized prices
 # closes_df = pd.DataFrame(
@@ -72,19 +80,24 @@ perf_df = pd.DataFrame(
 perf_df["portfolio_value"] = result_df.strategy_portfolio_value.apply(
         lambda x: sum(ast.literal_eval(x))).to_list()
 perf_daily_df = perf_df.resample('D').agg({"portfolio_value": "last"})
-sr = sharp_ratio(perf_daily_df["portfolio_value"].pct_change(), 252)
+sr = sharp_ratio(perf_daily_df["portfolio_value"].pct_change(), 365)
 roll_mdd = rolling_maximum_drawdown(perf_daily_df['portfolio_value'])
-number_instruments = 6
-num_trades = result_df.action.apply(lambda x: ast.literal_eval(x)[0].count('OPEN')).sum()
+number_instruments = number_instruments
+number_of_trading_days = (perf_daily_df.index[-1] - perf_daily_df.index[0]).days
+num_trades = result_df.action.apply(lambda x: ast.literal_eval(x)[0].count('OPEN')).sum() // 2
+tot_return = (perf_daily_df["portfolio_value"].iloc[-1]
+         / perf_daily_df["portfolio_value"].iloc[0]) - 1
+annualizd_return = tot_return * 365 / number_of_trading_days
 print(
     "____________Performance____________\n"
     + "Start Date: {}\n".format(perf_daily_df.index[0].strftime("%Y-%m-%d"))
     + "End Date: {}\n".format(perf_daily_df.index[-1].strftime("%Y-%m-%d"))
+    + "Number of Trading Days: {}\n".format(number_of_trading_days)
     + "Number of Instruments: {}\n".format(number_instruments)
     + "Number of Trades: {}\n".format(num_trades)
-    + "Total Return: {:.2f}%\n".format(
-        (perf_daily_df["portfolio_value"].iloc[-1]
-         / perf_daily_df["portfolio_value"].iloc[0] - 1) * 100)
+    + "Total Return: {:.2f}%\n".format(tot_return * 100)
+    + "Annualized Return: {:.2f}%\n".format(annualizd_return * 100)
     + "Sharpe Ratio: {:.2f}\n".format(sr)
     + "Rolling Maximum Drawdown: {:.2f}%\n".format(roll_mdd.min() * 100)
 )
+print("Performance is done.")

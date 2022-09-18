@@ -247,14 +247,14 @@ def run_pairs(
     return signals['pnl']
 
 
-def run_strategy(override_indicator_cfg=None):
+def run_strategy(**kwargs):
     """Run strategy for portfolio"""
     # Load default parameters
     with open("strategies/pairs_strategy/params.json", "r") as f:
         params = json.load(f)
     # Override parameters
-    if override_indicator_cfg is not None:
-        for k, v in override_indicator_cfg['params'].items():
+    if kwargs.get("override_indicator_cfg"):
+        for k, v in kwargs["override_indicator_cfg"]["params"].items():
             params[k] = v
 
     # Instruments
@@ -299,23 +299,9 @@ def run_strategy(override_indicator_cfg=None):
     security_codes = [s.code for s in stock_list]
     security_pairs = list(itertools.combinations(security_codes, 2))
 
-    # security_pairs = [
-    #     ('BTC.USD', 'EOS.USD'),
-    #     ('BTC.USD', 'ETH.USD'),
-    #     ('BTC.USD', 'LTC.USD'),
-    #     ('BTC.USD', 'TRX.USD'),
-    #     ('BTC.USD', 'XRP.USD'),
-    #     ('EOS.USD', 'ETH.USD'),
-    #     ('EOS.USD', 'LTC.USD'),
-    #     ('EOS.USD', 'TRX.USD'),
-    #     ('EOS.USD', 'XRP.USD'),
-    #     ('ETH.USD', 'LTC.USD'),
-    #     ('ETH.USD', 'TRX.USD'),
-    #     ('ETH.USD', 'XRP.USD'),
-    #     ('LTC.USD', 'TRX.USD'),
-    #     ('LTC.USD', 'XRP.USD'),
-    #     ('TRX.USD', 'XRP.USD')
-    # ]
+    # override security pairs
+    if kwargs.get("security_pairs"):
+        security_pairs = kwargs["security_pairs"]
 
     portfolio_pnl = None
     for i, security_pair in enumerate(security_pairs):

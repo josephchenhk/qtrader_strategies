@@ -61,7 +61,7 @@ def worker(
         partial(objective, security_pairs=[security_pair]),
         space,
         algo=tpe.suggest,
-        max_evals=15,
+        max_evals=6,
         trials=trials
     )
     return_dict[security_pair] = {

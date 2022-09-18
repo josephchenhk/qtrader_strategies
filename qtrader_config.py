@@ -26,7 +26,7 @@ GATEWAYS = {
     "Backtest": BACKTEST_GATEWAY,
 }
 
-TIME_STEP = 15 * 60 * 1000  # time step in milliseconds
+TIME_STEP = 1 * 60 * 1000  # time step in milliseconds
 
 DATA_PATH = {
     "kline": "clean_data/k_line",  # "k1m" is must have
@@ -38,6 +38,6 @@ DATA_MODEL = {
 
 ACTIVATED_PLUGINS = ["analysis"]
 
-AUTO_OPEN_PLOT = True
+AUTO_OPEN_PLOT = False
 IGNORE_TIMESTEP_OVERFLOW = False
 DATA_FFILL = True

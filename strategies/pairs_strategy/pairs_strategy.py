@@ -17,6 +17,7 @@ from time import sleep
 from typing import Dict, List, Tuple
 from datetime import datetime
 from datetime import timedelta
+from copy import copy
 import itertools
 import json
 
@@ -65,7 +66,13 @@ class PairsStrategy(BaseStrategy):
             for cfg_name, cfg_value in override_indicator_cfg["params"].items(
             ):
                 self.params[cfg_name] = cfg_value
-        # print(indicator_cfg)
+
+        # optimized params will override params
+        self.opt_params = kwargs.get("opt_params")
+
+        # pairs are given as params
+        self.security_pairs_params = kwargs.get("security_pairs")
+
         self.engine.log.info("Strategy loaded.")
 
     def init_strategy(self):
@@ -92,8 +99,15 @@ class PairsStrategy(BaseStrategy):
                 s.code for s in self.securities[gateway_name]]
             self.ohlcv[gateway_name] = {}
             self.lookback_period[gateway_name] = {}
-            self.security_pairs[gateway_name] = list(
-                itertools.combinations(security_codes[gateway_name], 2))
+
+            # If pairs are specified as params, we use them;
+            # otherwise list all of the combinations.
+            if self.security_pairs_params:
+                self.security_pairs[gateway_name] = self.security_pairs_params[:]
+            else:
+                self.security_pairs[gateway_name] = list(
+                    itertools.combinations(security_codes[gateway_name], 2))
+
             self.security_pairs_number_of_entry[gateway_name] = {
                 k: {"long1_short2": 0, "short1_long2": 0}
                 for k in self.security_pairs[gateway_name]}
@@ -236,7 +250,7 @@ class PairsStrategy(BaseStrategy):
                 if (
                         corr > self.params["correlation_threshold"]
                         and adf_pvalue < self.params["cointegration_pvalue_entry_threshold"]
-                        and 0.1 < gamma
+                        and 0.1 < gamma < 10.0
                 ):
                     self.current_candidate_security_pairs.append(
                         security_pair)
@@ -267,10 +281,21 @@ class PairsStrategy(BaseStrategy):
                 # validate current bar timestamps are aligned
                 bar1 = cur_data[gateway_name].get(security1)
                 bar2 = cur_data[gateway_name].get(security2)
-                assert bar1.datetime == bar2.datetime, (
-                    "Current ohlcv timestamp doesn't match: "
-                    f"{security1.code}|{security2.code}"
-                )
+                if bar1 is None and bar2 is None:
+                    continue
+                elif bar1 is None:
+                    bar1 = copy(self.ohlcv[gateway_name][security1][-1])
+                    bar1.datetime = bar2.datetime
+                    cur_data[gateway_name][security1] = bar1
+                elif bar2 is None:
+                    bar2 = copy(self.ohlcv[gateway_name][security2][-1])
+                    bar2.datetime = bar1.datetime
+                    cur_data[gateway_name][security2] = bar2
+                elif bar1.datetime != bar2.datetime:
+                    raise ValueError(
+                        "Current ohlcv timestamp doesn't match: "
+                        f"{security1.code}|{security2.code}"
+                    )
 
                 # Collect the ohlcv data
                 if (
@@ -353,6 +378,11 @@ class PairsStrategy(BaseStrategy):
                 ):
                     continue
 
+                bar1 = cur_data[gateway_name].get(security1)
+                bar2 = cur_data[gateway_name].get(security2)
+
+                gamma = self.security_pairs_regression_params[gateway_name][
+                    security_pair]["gamma"]
                 spread = np.array(
                     self.security_pairs_spread[gateway_name][security_pair])
 
@@ -365,20 +395,29 @@ class PairsStrategy(BaseStrategy):
                     0 <= self.security_pairs_number_of_entry[gateway_name][security_pair]["long1_short2"]
                     < self.params["max_number_of_entry"]
                     and self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"] == 0
+                    and (self.recalibration_date - cur_datetime).total_seconds() / 3600. > 24
                 )
                 can_entry_short1_long2 = (
                     0 <= self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"]
                     < self.params["max_number_of_entry"]
                     and self.security_pairs_number_of_entry[gateway_name][security_pair]["long1_short2"] == 0
+                    and (self.recalibration_date - cur_datetime).total_seconds() / 3600. > 24
                 )
+
+                if self.opt_params:
+                    entry_threshold = self.opt_params[security_pair][
+                        "entry_threshold"]
+                    exit_threshold = self.opt_params[security_pair][
+                        "exit_threshold"]
+                else:
+                    entry_threshold = self.params["entry_threshold"]
+                    exit_threshold = self.params["exit_threshold"]
                 entry_short1_long2 = (
-                    spread_zscore > self.params["entry_threshold"]
-                    and spread_zscore < (self.params["exit_threshold"]
-                                         + self.params["entry_threshold"]) / 2)
+                    spread_zscore > entry_threshold
+                    and spread_zscore < (exit_threshold + entry_threshold) / 2)
                 entry_long1_short2 = (
-                    spread_zscore < -self.params["entry_threshold"]
-                    and spread_zscore > -(self.params["exit_threshold"]
-                                          + self.params["entry_threshold"]) / 2
+                    spread_zscore < -entry_threshold
+                    and spread_zscore > -(exit_threshold + entry_threshold) / 2
                 )
 
                 can_exit_long1_short2 = (
@@ -387,11 +426,11 @@ class PairsStrategy(BaseStrategy):
                     self.security_pairs_number_of_entry[gateway_name][security_pair]["short1_long2"] > 0)
                 exit_long1_short2 = (
                     spread_zscore >= 0
-                    or spread_zscore < -self.params["exit_threshold"]
+                    or spread_zscore < -exit_threshold
                 )
                 exit_short1_long2 = (
                     spread_zscore <= 0
-                    or spread_zscore > self.params["exit_threshold"]
+                    or spread_zscore > exit_threshold
                 )
 
                 # Take trades

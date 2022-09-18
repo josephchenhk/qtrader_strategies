@@ -11,9 +11,9 @@ This demo will show how to build a practical strateqy
 
 ## Python environment
 
-Use conda to manage your environment. The following code
-creating a virtual environment named `demo_strategy` and
-installing the relevant packages:
+It is recommended to use conda to manage your environment. 
+The following code creating a virtual environment named 
+`demo_strategy` and installing the relevant packages:
 
 ```shell
 > chmod +x ./preparations.sh 
@@ -25,7 +25,7 @@ Or you can manually input the following commands:
 ```shell
 > conda create -n demo_strategy python=3.8
 > conda activate demo_strategy
-> pip install git+https://github.com/josephchenhk/qtrader@master
+> pip install --force-reinstall git+https://github.com/josephchenhk/qtrader@master
 > pip install dill finta termcolor pyyaml func_timeout scipy statsmodels hyperopt jupyter seaborn
 ```
 
@@ -39,22 +39,65 @@ dataset to backtest our model.
 ## Model Description 
 
 Cryptocurrencies are more inclined to co-move due to some 
-common driven forces than traditional assets. Therefore, they 
-be good candidates for a pairs trading strategy, which is based on 
-exploiting mean reversion in prices of securities.
+common market sentiment than traditional assets. Therefore, they 
+could be good candidates for a pairs trading strategy, which 
+is based on exploiting the mean reversion in prices of securities.
 
-Suppose `S1` and `S2` are the prices of two securities. In a training
-window, the linear regression of the logarithmic prices gives:
+There are two key things concerning a pairs trading strategy:
 
-$$\log(S_1) = \gamma\cdot\log(S_2) + \mu + \epsilon$$
+* Determine the candidate pairs
 
-Given the data window, the slope $\gamma$ and intercept
-$\mu$ could be obtained through linear regression.
-The residual term $\epsilon$ is the spread 
-$s = \log(S_1) - \gamma\cdot\log(S_2) - \mu$ which is expected 
-to exhibit mean-reverting
-properties, where $\gamma$ is the hedge ratio. If so, 
-a pairs trading strategy can be implemented as
+* Determine the entry and exit rules
+
+The following paragraphs explain these in details: 
+
+Suppose `S1` and `S2` are the prices of two securities. In the
+training window, the linear regression of the logarithmic 
+prices give:
+
+$$\log(S_1) = \gamma\cdot\log(S_2) + \epsilon$$
+
+where the slope $\gamma$ represents the hedge ratio.
+We can define the residual term $\epsilon$ as the spread 
+$s = \log(S_1) - \gamma\cdot\log(S_2)$, which is expected 
+to exhibit mean-reverting properties. 
+
+A Two-step method will be used to find out the candidate
+pairs. In step 1, for the given lookback window, the 
+correlation of the logarithm prices will be calculated, 
+and only those with a correlation higher than the threshold
+will be selected to enter step 2. In step 2, we will
+employ an Augmented Dicky Fuller (ADF) test on the shortlisted
+pairs from step 1, and only those with a p-value smaller
+than the predetermined threshold will be added to the 
+final candidate pool. In the ADF test, linear regression
+is carried out and regression coefficients $\gamma$ and
+$\mu$ are obtained. These values are assumed to be constant
+throughout the testing period. Once the testing period
+completes, the training window will move forward to
+latest timestamp, and repeat this two-step calculation
+to determine candidate pairs in next testing period.
+
+The main assumptions of this strategy could be 
+summarized as:
+
+1. The mean-reversion behaviors observed in the training 
+period will continue to exist in the testing period, and
+the spread will mean-revert to its historical mean.
+   
+2. Once a candidate pair is determined by the two-step
+method, it is valid throughout the next testing period, 
+   and the hedge ratio will also remain unchanged.
+   
+Note that in reality, there is no guarantee for any of
+the assumptions above. Violation of the assumptions
+could lead to failures of the strategy.
+
+Once we have determined the candidate pairs and their
+corresponding parameter $\gamma$, the model
+is ready to observe the signals by feeding price information.
+A pairs trading 
+strategy can be implemented as
 follows: when the latest spread $s$ exceeds 
 $\text{mean}(s) + \delta\cdot\text{std}(s)$, 
 security 1 is over-valued, and security 2 is under-valued, 
@@ -65,35 +108,35 @@ $\text{mean}(s) - \delta\cdot\text{std}(s)$,
 security 1 is under-valued, and security 2 is over-valued,
 as a result we open 1 unit of long position for security 1, 
 and $\gamma$ unit of short position for security 2. The 
-parameter $\delta$ here is a threshold that should be measured 
-with simulation data.
+parameter $\delta$ here is a threshold number that should
+be measured with simulation data.
 
 To control the risk, we also need to apply the stop
 loss rule to the strategy: if we are long security 1, and
 short security 2, when $s$ does not mean-revert to 
-its historical mean $\text{mean}(s)$, but
+its historical mean $\text{mean}(s)$, but instead
 deviates further to be even smaller than
 $\text{mean}(s) - \Delta\cdot\text{std}(s)$,
-where $\Delta$ is a multiple which is usually larger than $\delta$,
-we will close the position even if we
-have to realize the loss. Similarly, when we are
-short security 1, and long security 2, and $s$ does not 
-mean-revert to its historical mean $\text{mean}(s)$,
-but moves further to be even larger than
+where $\Delta$ is a multiplier which is usually larger 
+than entry threshold $\delta$,
+we will close the position and realize the loss. 
+Similarly, when we are short security 1, long security 2, 
+and $s$ does not mean-revert to its historical mean 
+$\text{mean}(s)$, but moves further to be even larger than
 $\text{mean}(s) + \Delta\cdot\text{std}(s)$,
-we will also close the position which means we will
-realize the loss in the existing position. Similar to
-$\delta$, the parameter $\Delta$ is also a threshold that needs
-to be measured with simulation data.
+the position will be closed and a loss will be realized. 
+Similar to $\delta$, the exit threshold $\Delta$ is also 
+a number that needs to be found out with training data.
 
 Besides the z-score condition, there are
-also other exit conditions: when a pair is on, 
-the time series should remain cointegrated and the 
-hedge ratio $\gamma$ should be positive. If any 
-of these conditions are violated, the foundation of 
-the pairs trading strategy is not valid anymore, 
-and the existing position of the pair should be 
-cleared. 
+also other entry conditions: when a pair is on, 
+the hedge ratio $\gamma$ should be positive. This
+is to ensure that we always have a market-neutral
+position, i.e., long position in one security
+and short position in another. And we also 
+close existing positions and avoid
+opening new position at the end of the testing
+period.
 
 # Simulation Results
 
@@ -101,84 +144,101 @@ As discussed in EDA，the trading universe is six cryptocurrency
 pairs:`BTC.USD`, `EOS.USD`, `ETH.USD`, `LTC.USD`, `TRX.USD`, 
 and`XRP.USD`.
 
-We use 15-minute OHLCV for each pair, with a look-back 
-window of 15 days (`lookback_period=1440` bars). 
-In this training period, we use a correlation method to 
-determine the possible trading pairs. Only those pairs with 
+The OHLCV data of different intervals (5-min, 15-min, and 30-min)
+are used for simulations. The look-back 
+window is fixed to be 960 bars (`lookback_period=960`). 
+In the training period, we apply a two-step 
+statistical method to the data in lookback window to 
+determine the candidate pairs. Only those pairs with 
 a correlation higher than the threshold 
-(`correlation_threshold=0.8`) will be shortlisted. The trading
-window is 4 days immediately following the previous 15 days
-training period. When the trading period completes, the 
-dynamic rolling window will be automatically shifted 4 days ahead
-for the next training and trading periods (`recalibration_interval=4`).
-In the trading period, a rigorous co-integration test is employed
-to find out the cointegrated pairs, only the pairs with
-a p-value in cointegration test lesser than 0.05 will
-be qualified for trading (`cointegration_pvalue_entry_threshold=0.05`). 
-Once any pair of cryptocurrency is on, the cointegration
-condition must be valid, otherwise the position will
-be closed (`cointegration_pvalue_exit_threshold=0.15`).
+(`correlation_threshold=0.8`) and an 
+ADF p-value less than the threshold 
+(`cointegration_pvalue_entry_threshold=0.1`) will be shortlisted. 
+The trading
+window is next 480 bars (`recalibration_interval=480`) immediately 
+following the previous training period. When the trading period 
+completes, the dynamic rolling window will be automatically 
+shifted 480 bars ahead
+for the next training and trading periods.
+In the trading period, the spread 
+$s = \log(S_1) - \gamma\cdot\log(S_2)$ is updated
+by feeding the new price $S_1$ and $S_2$, and entry and
+exit are determined by z-score of the calculated spread.
 
-As a naive configuration for the strategy, we set
-$\delta=1.5$ (`entry_threshold=1.5`), and $\Delta=2.0$ 
-(`exit_threshold=2.0`). Note that these two parameters
-are supposed to be fine-tuned with the backtest data.
-We also assume for each trading opportunity, 
+The entry threshold is defined as anything between 1.5-sigma and 2-sigma
+(`1.5 < entry_threshold < 2.0`); and the exit threshold is defined
+as anything between 2.5-sigma and 3.5-sigma
+(`2.5 < exit_threshold < 3.5`). These parameters will change as per the 
+backtesting results and individual security without risking overfitting 
+data. We also assume for each trading opportunity, 
 the maximum capital allocated to individual security 
 is USD 1 million (`capital_per_entry=1000000`). And we 
 only enter the trade once for repeating signals 
-(`max_number_of_entry=1`). Since there are six pairs
-of cryptocurrencies, the number of combinations is
-$C^2_6 = 15$, the capital required for this 
-strategy is $15$ million.
+(`max_number_of_entry=1`). 
 
 A summary of the strategy parameters is shown below:
 
 ```json
-"lookback_period": 1440,
-"correlation_threshold": 0.80,
-"recalibration_interval": 4,
-"cointegration_pvalue_entry_threshold": 0.05,
-"cointegration_pvalue_exit_threshold": 0.15,
-"entry_threshold": 1.5,
-"exit_threshold": 2.5,
+"lookback_period": 960,
+"correlation_threshold": 0.8,
+"recalibration_interval": 480,
+"cointegration_pvalue_entry_threshold": 0.1,
+"entry_threshold": [1.5, 2.0],
+"exit_threshold": [2.5, 3.5],
 "max_number_of_entry": 1,
 "capital_per_entry": 1000000
 ```
 
+## Optimization Objective Function
+
+The objective of the strategy is to maximize the 
+Sharpe ratio and the total return. Therefore, the objective
+function is defined as:
+
+$$
+f(entry_threshold, exit_threshold) = \min(\max(sr, 0), 0.5) * tot_r
+$$
+
+where $sr$ is the Sharpe ratio, and $tot_r$ is the total
+return.
+
+## 5-min Interval
+
+We firstly test the strategy in a 5-min interval. This
+means we have a training window (lookback window) of 80 hours 
+($5 * 960 / 60 = 80$), and a testing window (trading window)
+of 40 hours.
+
 ### Training Period
 Below is the Backtest result from 2021-01-01 to 2021-12-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/pnl_01.jpeg "pnl_01")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/5min_in_sample.jpeg "5min_in_sample")
 
 ```html
 ____________Performance____________
 Start Date: 2021-01-01
-End Date: 2021-12-31
+End Date: 2022-01-01
 Number of Instruments: 6
-Number of Trades: 526
-Total Return: 5.60%
-Sharpe Ratio: 0.68
-Rolling Maximum Drawdown: -4.69%
+Number of Trades: 168
+Total Return: 6.38%
+Sharpe Ratio: 0.80
+Rolling Maximum Drawdown: -5.39%
 ```
-
-As can be seen, there is a significant drawdown period
-in mid Jul to mid Aug. The strategy opened new positions 
-for most of the 
-currency pairs with `XRPUSD` almost immediately after hitting 
-the stop loss. We can examine this by viewing the normalized
-prices of all six cryptocurrency pairs. As expected, there was
-indeed observable turbulence in `XRPUSD` during 19 Jul - 16 Aug.
-It is this abnormal price movement that makes the drawdown
-and rebounce subsequently.
-
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/closes_jul19_aug16.jpeg "closes_sep")
 
 ### Testing Period
 
-Once we optimized parameters in training dataset, we
-are ready to test our strategy in testing dataset.
-Below is the Backtest result from 2022-01-01 to 2022-08-11: 
+Below is the Backtest result from 2021-01-01 to 2022-01-01: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/5min_out_of_sample.jpeg "5min_out_of_sample")
 
+```html
+____________Performance____________
+Start Date: 2022-01-01
+End Date: 2022-08-01
+Number of Instruments: 6
+Number of Trades: 89
+Total Return: 1.82%
+Sharpe Ratio: 0.68
+Rolling Maximum Drawdown: -3.00%
+```
 
 ## Future Work
 
@@ -206,4 +266,9 @@ the parameters `entry_threshold` and `exit_threshold` regularly.
 
 - (5). Consider the actual volume to have a better estimation of 
 executed shares.
+  
+- (6). Consider using total least squares intead of OLS
+to obtain the regression coefficients (hedge ratios).
+  
+- (7). Consider transaction costs in the simulation.
   

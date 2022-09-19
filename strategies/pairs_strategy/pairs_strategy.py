@@ -440,7 +440,8 @@ class PairsStrategy(BaseStrategy):
                 ):
                     self.engine.log.info(
                         f"entry_long1_short2: {security1.code}|{security2.code}")
-                    qty1, qty2 = self.calc_entry_quantities(bar1, bar2, gamma)
+                    qty1, qty2 = self.calc_entry_quantities(
+                        security1, security2, bar1, bar2, gamma)
                     self.entry_long1_short2(
                         no=self.security_pairs_number_of_entry[gateway_name][
                             security_pair]["long1_short2"],
@@ -465,7 +466,8 @@ class PairsStrategy(BaseStrategy):
                 ):
                     self.engine.log.info(
                         f"entry_short1_long2 {security1.code}|{security2.code}")
-                    qty1, qty2 = self.calc_entry_quantities(bar1, bar2, gamma)
+                    qty1, qty2 = self.calc_entry_quantities(
+                        security1, security2, bar1, bar2, gamma)
                     self.entry_short1_long2(
                         no=self.security_pairs_number_of_entry[gateway_name][
                             security_pair]["short1_long2"],
@@ -636,35 +638,21 @@ class PairsStrategy(BaseStrategy):
               for gn in cur_data]
         )))
 
-    # def calc_entry_quantities(
-    #         self,
-    #         bar1: Bar,
-    #         bar2: Bar,
-    #         gamma: float,
-    # ) -> Tuple[int]:
-    #     q1 = int(self.params["capital_per_entry"] / bar1.close)
-    #     q2 = int(self.params["capital_per_entry"] / bar2.close / gamma)
-    #     if q1 <= q2:
-    #         qty1 = q1
-    #         qty2 = int(q1 * gamma)
-    #     else:
-    #         qty1 = q2
-    #         qty2 = int(q2 * gamma)
-    #     return qty1, qty2
-
     def calc_entry_quantities(
             self,
+            security1: Security,
+            security2: Security,
             bar1: Bar,
             bar2: Bar,
             gamma: float,
     ) -> Tuple[int]:
         assert gamma > 0, "gamma should be positive!"
         if gamma <= 1:
-            qty1 = int(self.params["capital_per_entry"] / bar1.close)
-            qty2 = int(self.params["capital_per_entry"] * gamma / bar2.close)
+            qty1 = int(self.params["capital_per_entry"] / bar1.close / security1.lot_size)
+            qty2 = int(self.params["capital_per_entry"] * gamma / bar2.close / security2.lot_size)
         else:
-            qty1 = int(self.params["capital_per_entry"] / gamma / bar1.close)
-            qty2 = int(self.params["capital_per_entry"] / bar2.close)
+            qty1 = int(self.params["capital_per_entry"] / gamma / bar1.close / security1.lot_size)
+            qty2 = int(self.params["capital_per_entry"] / bar2.close / security2.lot_size)
         return qty1, qty2
 
     def get_existing_quantities(

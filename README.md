@@ -503,3 +503,8 @@ to obtain the regression coefficients (hedge ratios).
 - (7). Consider different lookback window and trading window
 for different time intervals.
   
+- (8). Utilize a one-period execution lag for all trade
+orders to approximate the bid-ask spread since 
+  contrarian trading strategies might be unknowingly
+  buying for bid prices and vice versa.
+  

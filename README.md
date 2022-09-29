@@ -26,6 +26,7 @@ Or you can manually input the following commands:
 > conda create -n demo_strategy python=3.8
 > conda activate demo_strategy
 > pip install --force-reinstall git+https://github.com/josephchenhk/qtrader@master
+> pip install --force-reinstall git+https://github.com/josephchenhk/qtalib@main
 > pip install dill finta termcolor pyyaml func_timeout scipy statsmodels hyperopt jupyter seaborn
 ```
 

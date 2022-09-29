@@ -162,9 +162,9 @@ the hedge ratio $\gamma$ should be positive. This
 is to ensure that we always have a market-neutral
 position, i.e., long position in one security
 and short position in another. 
-~And we also close existing positions and avoid
-~opening new position at the end of the testing
-~period.
+~~And we also close existing positions and avoid
+opening new position at the end of the testing
+period.~~
 When the testing period finishes, a recalibration
 will be carried out. The cointegration properties
 are re-evaluated by measuring the 
@@ -179,7 +179,7 @@ will be adjusted accordingly.
 
 As discussed in EDA，the trading universe is six cryptocurrency 
 pairs:`BTC.USD`, `EOS.USD`, `ETH.USD`, `LTC.USD`, `TRX.USD`, 
-and`XRP.USD`. Hence there are 15 ($C^2_6=15$) pairs
+and`XRP.USD`. Hence there are 15 ( $C^2_6=15$ ) pairs
 for trading:
 
 ```html
@@ -217,7 +217,8 @@ following the previous training period. When the trading period
 completes, the dynamic rolling window will be automatically 
 shifted ahead for the next training and trading periods.
 In the trading period, the spread 
-$s = \log(S_1) - \gamma\cdot\log(S_2) - mu$ is updated
+$s = \log(S_1) - \gamma\cdot\log(S_2) - \mu$ 
+(and thus $\tilde{s}$) is updated
 by feeding the new price $S_1$ and $S_2$, and entry and
 exit are determined by z-score of the calculated spread.
 
@@ -255,7 +256,8 @@ A summary of the strategy parameters is shown below:
 ## Optimization Objective Function
 
 The objective of the strategy is to maximize the 
-Sharpe ratio and the total return. Therefore, the objective
+the total return and minimize the drawdown. 
+Therefore, the objective
 function is defined as minimizing $f$:
 
 $$
@@ -389,10 +391,10 @@ A comparison with the previous version:
 There is a lot of work to be done to improve the strategy, which is 
 included but not limited to:
 
-~- (1). In practice, the model should be trained 
-~in a dynamic rolling window, i.e., recalibrating
-~the parameters `entry_threshold` and `exit_threshold` regularly. 
-~The code for optimization is in `optimization_pair.py`.
+~~- (1). In practice, the model should be trained 
+in a dynamic rolling window, i.e., recalibrating
+the parameters `entry_threshold` and `exit_threshold` regularly. 
+The code for optimization is in `optimization_pair.py`.~~
   
 - (2). Consider a vectorization (dataframe/numpy) implementation 
   of the backtest, to increase the optimization speed. It
@@ -412,8 +414,8 @@ to obtain the regression coefficients (hedge ratios).
   
 - (6). Consider transaction costs in the simulation.
 
-~- (7). Consider different lookback window and trading window
-~for different time intervals.
+~~- (7). Consider different lookback window and trading window
+~for different time intervals.~~
   
 - (8). Utilize a one-period execution lag for all trade
 orders to approximate the bid-ask spread since 

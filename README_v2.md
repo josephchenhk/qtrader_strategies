@@ -75,7 +75,7 @@ moving average. We can define the smoothed spread
 as:
 
 $$
-\tilde{spread} = (spread_{SMA} - avg(spread_{LMA})) / std(spread_{LMA}) 
+\tilde{s} = (s_{SMA} - \text{avg}(s_{LMA})) / \text{std}(s_{LMA}) 
 $$
 
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/mean_reversion_ma.jpeg "mean_reversion_ma")

@@ -414,8 +414,8 @@ to obtain the regression coefficients (hedge ratios).
   
 - (6). Consider transaction costs in the simulation.
 
-~~- (7). Consider different lookback window and trading window
-~for different time intervals.~~
+~~- (7). Consider different lookback window and 
+trading window for different time intervals.~~
   
 - (8). Utilize a one-period execution lag for all trade
 orders to approximate the bid-ask spread since 

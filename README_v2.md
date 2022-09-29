@@ -364,15 +364,15 @@ A comparison with the previous version:
             <td>13</td>
         </tr>
         <tr>
-            <td >15-min</td>
-            <td>19.46%</td>
-            <td>23.35%</td>
-            <td>1.32</td>
-            <td>1.92</td>
-            <td>-9.77%</td>
-            <td>-5.45%</td>
-            <td>126</td>
-            <td>79</td>
+            <th style="color:blue;">15-min</th>
+            <th style="color:blue;">19.46%</th>
+            <th style="color:blue;">23.35%</th>
+            <th style="color:blue;">1.32</th>
+            <th style="color:blue;">1.92</th>
+            <th style="color:blue;">-9.77%</th>
+            <th style="color:blue;">-5.45%</th>
+            <th style="color:blue;">126</th>
+            <th style="color:blue;">79</th>
         </tr>
         <tr>
             <td >60-min</td>

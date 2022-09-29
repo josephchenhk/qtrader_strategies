@@ -14,4 +14,4 @@ You should have received a copy of the JXW license with
 this file. If not, please write to: josephchenhk@gmail.com
 """
 
-from .pairs_strategy import PairsStrategy
+from .pairs_strategy_v2 import PairsStrategy

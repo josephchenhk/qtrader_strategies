@@ -1,10 +1,14 @@
 {
-  "lookback_period": 960,
-  "correlation_threshold": 0.8,
-  "recalibration_interval": 480,
-  "cointegration_pvalue_entry_threshold": 0.1,
-  "entry_threshold": 1.65,
-  "exit_threshold": 3.0,
+  "lookback_period": 4000,
+  "recalibration_lookback_ratio": 0.12,
+  "corr_init_threshold": 0.85,
+  "corr_maintain_threshold": 0.65,
+  "coint_pvalue_init_threshold": 0.01,
+  "coint_pvalue_maintain_threshold": 0.10,
+  "entry_threshold_pct": 0.75,
+  "exit_threshold_pct": 0.99,
   "max_number_of_entry": 1,
-  "capital_per_entry": 1000000
+  "capital_per_entry": 1000000,
+  "ma_short_length": 50,
+  "ma_long_length": 200
 }

@@ -40,10 +40,16 @@ def run_strategy(**kwargs):
          datetime(1970, 1, 1, 23, 59, 59)],
     ]
     gateway_name = "Backtest"
-    start = datetime(2021, 1, 1, 0, 0, 0)
-    end = datetime(2022, 1, 1, 0, 0, 0)
-    # start = datetime(2022, 1, 1, 0, 0, 0)
-    # end = datetime(2022, 8, 1, 0, 0, 0)
+
+    if "start" in kwargs:
+        start = kwargs["start"]
+    else:
+        start = datetime(2022, 1, 1, 0, 0, 0)
+
+    if "end" in kwargs:
+        end = kwargs["end"]
+    else:
+        end = datetime(2022, 2, 1, 0, 0, 0)
 
     stock_list = [
         Currency(
@@ -164,18 +170,29 @@ def run_strategy(**kwargs):
     )
 
 if __name__ == "__main__":
-    with open("opt_params.pkl", "rb") as f:
-        opt_params = pickle.load(f)
-        # select securities to trade
-        opt_params = {k: v for k, v in opt_params.items() if v["best_loss"] < 0}
-        security_pairs = [k for k, v in opt_params.items() if v["best_loss"] < 0]
-        df = run_strategy(
-            # override_indicator_cfg=
-            # {'params':
-            #      {'entry_threshold': 1.9512880891669317,
-            #       'exit_threshold': 2.1816070388851037}
-            #  },
-            opt_params=opt_params,
-            security_pairs=security_pairs
-        )
+    security_pairs_lst = [
+        ('BTC.USD', 'EOS.USD'),
+        ('BTC.USD', 'ETH.USD'),
+        ('BTC.USD', 'LTC.USD'),
+        ('BTC.USD', 'TRX.USD'),
+        ('BTC.USD', 'XRP.USD'),
+        ('EOS.USD', 'ETH.USD'),
+        ('EOS.USD', 'LTC.USD'),
+        ('EOS.USD', 'TRX.USD'),
+        ('EOS.USD', 'XRP.USD'),
+        ('ETH.USD', 'LTC.USD'),
+        ('ETH.USD', 'TRX.USD'),
+        ('ETH.USD', 'XRP.USD'),
+        ('LTC.USD', 'TRX.USD'),
+        ('LTC.USD', 'XRP.USD'),
+        ('TRX.USD', 'XRP.USD')
+    ]
+
+    start = datetime(2022, 1, 1, 0, 0, 0)
+    end = datetime(2022, 8, 1, 0, 0, 0)
+    df = run_strategy(
+        security_pairs=security_pairs_lst,
+        start=start,
+        end=end
+    )
     print("Backtest is done.")

@@ -16,6 +16,7 @@ this file. If not, please write to: josephchenhk@gmail.com
 from datetime import datetime
 import ast
 import pickle
+import matplotlib.pyplot as plt
 
 import pandas as pd
 
@@ -37,30 +38,31 @@ instruments = {
     }
 }
 
-with open("saved_results/opt_params_5min.pkl", "rb") as f:
-    opt_params = pickle.load(f)
-    # select securities to trade
-    opt_params = {k: v for k, v in opt_params.items() if v["best_loss"] < 0}
-    print(opt_params)
-    number_instruments = len(opt_params)
+# with open("saved_results/opt_params_5min.pkl", "rb") as f:
+#     opt_params = pickle.load(f)
+#     # select securities to trade
+#     opt_params = {k: v for k, v in opt_params.items() if v["best_loss"] < 0}
+#     print(opt_params)
+#     number_instruments = len(opt_params)
 
 
-result_df = pd.read_csv("saved_results/5min_in_sample/result_pairs.csv")
+result_df = pd.read_csv("saved_results/v2_15min_out_of_sample/result_pairs.csv")
 
 # # Plot normalized prices
 # closes_df = pd.DataFrame(
 #     index=result_df.datetime.apply(
 #         lambda x: datetime.strptime(
 #             ast.literal_eval(x)[0], "%Y-%m-%d %H:%M:%S")),
-#     columns=instruments["security"]["Backtest"]
+#     # columns=instruments["security"]["Backtest"],
+#     columns=["TRX.USD", "XRP.USD", "BTC.USD"],
 # )
 # for i, sec_code in enumerate(closes_df.columns):
 #     closes_df[sec_code] = result_df.close.apply(
 #         lambda x: ast.literal_eval(x)[0][i]
 #     ).to_list()
 #
-# range_start = datetime(2021, 7, 19)
-# range_end = datetime(2021, 8, 16)
+# range_start = datetime(2021, 1, 29)
+# range_end = datetime(2021, 2, 1)
 # closes_df = closes_df[
 #     (closes_df.index >= range_start)
 #     & (closes_df.index <= range_end)
@@ -82,7 +84,7 @@ perf_df["portfolio_value"] = result_df.strategy_portfolio_value.apply(
 perf_daily_df = perf_df.resample('D').agg({"portfolio_value": "last"})
 sr = sharp_ratio(perf_daily_df["portfolio_value"].pct_change(), 365)
 roll_mdd = rolling_maximum_drawdown(perf_daily_df['portfolio_value'])
-number_instruments = number_instruments
+number_instruments =15 # number_instruments
 number_of_trading_days = (perf_daily_df.index[-1] - perf_daily_df.index[0]).days
 num_trades = result_df.action.apply(lambda x: ast.literal_eval(x)[0].count('OPEN')).sum() // 2
 tot_return = (perf_daily_df["portfolio_value"].iloc[-1]

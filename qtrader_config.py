@@ -26,10 +26,10 @@ GATEWAYS = {
     "Backtest": BACKTEST_GATEWAY,
 }
 
-TIME_STEP = 1 * 60 * 1000  # time step in milliseconds
+TIME_STEP = 15 * 60 * 1000  # time step in milliseconds
 
 DATA_PATH = {
-    "kline": "clean_data/k_line",  # "k1m" is must have
+    "kline": "clean_data/k_line",
 }
 
 DATA_MODEL = {

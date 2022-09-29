@@ -78,6 +78,12 @@ $$
 \tilde{s} = (s_{SMA} - \text{avg}(s_{LMA})) / \text{std}(s_{LMA}) 
 $$
 
+where $s_{SMA}$ is the short-term moving average of $s$,
+and $s_{LMS}$ is the long-term moving average of $s$.
+The moving average windows are defined in the parameters:
+`ma_short_length` and `ma_long_length`. Below is 
+the smoothed spread from previous data:
+
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/mean_reversion_ma.jpeg "mean_reversion_ma")
 
 A Two-step method will be used to find out the candidate
@@ -155,16 +161,44 @@ also other entry conditions: when a pair is on,
 the hedge ratio $\gamma$ should be positive. This
 is to ensure that we always have a market-neutral
 position, i.e., long position in one security
-and short position in another. And we also 
-close existing positions and avoid
-opening new position at the end of the testing
-period.
+and short position in another. 
+~And we also close existing positions and avoid
+~opening new position at the end of the testing
+~period.
+When the testing period finishes, a recalibration
+will be carried out. The cointegration properties
+are re-evaluated by measuring the 
+correlation (`corr_maintain_threshold`) and 
+cointegration p-value (`coint_pvalue_maintain_threshold`).
+If this property is violated, existing positions
+will be closed immediately; otherwise, the hedge
+ratios will be updated, and existing positions
+will be adjusted accordingly.
 
 # Simulation Results
 
 As discussed in EDA，the trading universe is six cryptocurrency 
 pairs:`BTC.USD`, `EOS.USD`, `ETH.USD`, `LTC.USD`, `TRX.USD`, 
-and`XRP.USD`.
+and`XRP.USD`. Hence there are 15 ($C^2_6=15$) pairs
+for trading:
+
+```html
+('BTC.USD', 'EOS.USD'),
+('BTC.USD', 'ETH.USD'),
+('BTC.USD', 'LTC.USD'),
+('BTC.USD', 'TRX.USD'),
+('BTC.USD', 'XRP.USD'),
+('EOS.USD', 'ETH.USD'),
+('EOS.USD', 'LTC.USD'),
+('EOS.USD', 'TRX.USD'),
+('EOS.USD', 'XRP.USD'),
+('ETH.USD', 'LTC.USD'),
+('ETH.USD', 'TRX.USD'),
+('ETH.USD', 'XRP.USD'),
+('LTC.USD', 'TRX.USD'),
+('LTC.USD', 'XRP.USD'),
+('TRX.USD', 'XRP.USD')
+```
 
 The OHLCV data of interval 15-min
 are used for simulations. The look-back 
@@ -225,22 +259,24 @@ Sharpe ratio and the total return. Therefore, the objective
 function is defined as minimizing $f$:
 
 $$
-f(entry\textunderscore threshold, exit\textunderscore threshold) 
-= -\min(\max(\text{SR}, 0), 0.5) * \text{TOTR}
+f(recalibration\textunderscore lookback\textunderscore ratio, 
+ma\textunderscore short\textunderscore length) 
+= -\text{TOTR}/\text{MDD}
 $$
 
-where $\text{SR}$ is the Sharpe ratio, and $\text{TOTR}$ is the total
+where $\text{MDD}$ is the maximum drawdown, and $\text{TOTR}$ is the total
 return.
 
 ## 15-min Interval
 
 We then test the strategy in a 15-min interval. This
-means we have a training window (lookback window) of 10 days 
-($15 * 960 / (60 * 24) = 10$), and a testing window (trading window)
-of 5 days.
+means we have a training window (lookback window) of 
+roughly 42 days 
+($15 * 4000 / (60 * 24) = 41.6$), and a testing window 
+(trading window) that is calculated from
+`recalibration_lookback_ratio`.
 
-As discussed, there are 5 pairs that 
-are selected. And the strategy will be tested on both 
+The strategy is tested on both 
 in-sample and out-of-sample datasets.
 
 ### In-sample
@@ -262,7 +298,7 @@ Rolling Maximum Drawdown: -9.77%
 
 ### Out-of_sample
 
-Below is the Backtest result from 2021-01-01 to 2022-01-01: 
+Below is the Backtest result from 2022-01-01 to 2022-07-31: 
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v2_15min_out_of_sample.jpeg "15min_out_of_sample")
 
 ```html
@@ -280,10 +316,7 @@ Rolling Maximum Drawdown: -5.45%
 
 ## Summary & Future Work
 
-As can be seen, both the 5-min and 60-min intervals deliver
-positive returns in both in-sample and out-of-sample datasets.
-However, as the interval increases, the trading opportunities
-decrease. 
+A comparison with the previous version:
 
 <table>
     <thead>
@@ -329,6 +362,17 @@ decrease.
             <td>13</td>
         </tr>
         <tr>
+            <td >15-min</td>
+            <td>19.46%</td>
+            <td>23.35%</td>
+            <td>1.32</td>
+            <td>1.92</td>
+            <td>-9.77%</td>
+            <td>-5.45%</td>
+            <td>126</td>
+            <td>79</td>
+        </tr>
+        <tr>
             <td >60-min</td>
             <td>16.77%</td>
             <td>13.28%</td>
@@ -345,10 +389,10 @@ decrease.
 There is a lot of work to be done to improve the strategy, which is 
 included but not limited to:
 
-- (1). In practice, the model should be trained
-  in a dynamic rolling window, i.e., recalibrating
-the parameters `entry_threshold` and `exit_threshold` regularly.
-  The code for optimization is in `optimization_pair.py`.
+~- (1). In practice, the model should be trained 
+~in a dynamic rolling window, i.e., recalibrating
+~the parameters `entry_threshold` and `exit_threshold` regularly. 
+~The code for optimization is in `optimization_pair.py`.
   
 - (2). Consider a vectorization (dataframe/numpy) implementation 
   of the backtest, to increase the optimization speed. It
@@ -368,8 +412,8 @@ to obtain the regression coefficients (hedge ratios).
   
 - (6). Consider transaction costs in the simulation.
 
-- (7). Consider different lookback window and trading window
-for different time intervals.
+~- (7). Consider different lookback window and trading window
+~for different time intervals.
   
 - (8). Utilize a one-period execution lag for all trade
 orders to approximate the bid-ask spread since 

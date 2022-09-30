@@ -39,6 +39,8 @@ def objective(args, **kwargs):
     if case == 'case 1':
         df = run_strategy(
             security_pairs=kwargs.get("security_pairs"),
+            start=kwargs.get("start"),
+            end=kwargs.get("end"),
             override_indicator_cfg=
             {'params':
                  {'recalibration_lookback_ratio': recalibration_lookback_ratio,
@@ -72,12 +74,17 @@ def objective(args, **kwargs):
 
 def worker(
         security_pair: Tuple[str],
+        start: datetime,
+        end: datetime,
         return_dict:  Dict[Tuple, Dict]
 ) -> Dict[str, float]:
     """Process that run the optimization for a pair"""
     trials = Trials()
     best = timeit(fmin)(
-        partial(objective, security_pairs=[security_pair]),
+        partial(objective,
+                security_pairs=[security_pair],
+                start=start,
+                end=end),
         space,
         algo=tpe.suggest,
         max_evals=25,
@@ -139,14 +146,14 @@ if __name__ == "__main__":
         (datetime(2020, 11, 1), datetime(2021, 11, 1)),
         (datetime(2020, 12, 1), datetime(2021, 12, 1)),
 
-        # (datetime(2021, 1, 1), datetime(2022, 1, 1)),
-        # (datetime(2021, 2, 1), datetime(2022, 2, 1)),
-        # (datetime(2021, 3, 1), datetime(2022, 3, 1)),
-        # (datetime(2021, 4, 1), datetime(2022, 4, 1)),
-        # (datetime(2021, 5, 1), datetime(2022, 5, 1)),
-        # (datetime(2021, 6, 1), datetime(2022, 6, 1)),
-        # (datetime(2021, 7, 1), datetime(2022, 7, 1)),
-        # (datetime(2021, 8, 1), datetime(2022, 8, 1)),
+        (datetime(2021, 1, 1), datetime(2022, 1, 1)),
+        (datetime(2021, 2, 1), datetime(2022, 2, 1)),
+        (datetime(2021, 3, 1), datetime(2022, 3, 1)),
+        (datetime(2021, 4, 1), datetime(2022, 4, 1)),
+        (datetime(2021, 5, 1), datetime(2022, 5, 1)),
+        (datetime(2021, 6, 1), datetime(2022, 6, 1)),
+        (datetime(2021, 7, 1), datetime(2022, 7, 1)),
+        (datetime(2021, 8, 1), datetime(2022, 8, 1)),
     ]
 
     for start, end in dates:
@@ -161,7 +168,7 @@ if __name__ == "__main__":
         for security_pair in security_pairs_lst[:]:
             p = multiprocessing.Process(
                 target=worker,
-                args=(security_pair, return_dict))
+                args=(security_pair, start, end, return_dict))
             jobs.append(p)
             p.start()
 

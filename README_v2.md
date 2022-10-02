@@ -283,7 +283,7 @@ in-sample and out-of-sample datasets.
 
 ### In-sample
 Below is the Backtest result from 2021-01-01 to 2021-12-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v2_15min_in_sample.jpeg "15min_in_sample")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_15min_in_sample.jpeg "15min_in_sample")
 
 ```html
 ____________Performance____________
@@ -291,17 +291,17 @@ Start Date: 2021-01-01
 End Date: 2022-01-01
 Number of Trading Days: 365
 Number of Instruments: 15
-Number of Trades: 126
-Total Return: 19.46%
-Annualized Return: 19.46%
-Sharpe Ratio: 1.32
-Rolling Maximum Drawdown: -9.77%
+Number of Trades: 134
+Total Return: 44.34%
+Annualized Return: 44.34%
+Sharpe Ratio: 2.97
+Rolling Maximum Drawdown: -4.02%
 ```
 
 ### Out-of_sample
 
 Below is the Backtest result from 2022-01-01 to 2022-07-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v2_15min_out_of_sample.jpeg "15min_out_of_sample")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_15min_out_of_sample.jpeg "15min_out_of_sample")
 
 ```html
 ____________Performance____________
@@ -309,11 +309,58 @@ Start Date: 2022-01-01
 End Date: 2022-08-01
 Number of Trading Days: 212
 Number of Instruments: 15
-Number of Trades: 79
-Total Return: 13.56%
-Annualized Return: 23.35%
-Sharpe Ratio: 1.92
-Rolling Maximum Drawdown: -5.45%
+Number of Trades: 83
+Total Return: 11.25%
+Annualized Return: 19.37%
+Sharpe Ratio: 1.76
+Rolling Maximum Drawdown: -5.06%
+```
+
+## 60-min Interval
+
+We then test the strategy in a 60-min interval. This
+means we have a training window (lookback window) of 
+roughly 167 days 
+($60 * 4000 / (60 * 24) = 166.7$), and a testing window 
+(trading window) that is calculated from
+`recalibration_lookback_ratio`.
+
+The strategy is tested on both 
+in-sample and out-of-sample datasets.
+
+### In-sample
+Below is the Backtest result from 2021-01-01 to 2021-12-31: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_60min_in_sample.jpeg "15min_in_sample")
+
+```html
+____________Performance____________
+Start Date: 2021-01-01
+End Date: 2022-01-01
+Number of Trading Days: 365
+Number of Instruments: 15
+Number of Trades: 28
+Total Return: 12.67%
+Annualized Return: 12.67%
+Sharpe Ratio: 0.88
+Rolling Maximum Drawdown: -8.56%
+```
+
+### Out-of_sample
+
+Below is the Backtest result from 2022-01-01 to 2022-07-31: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_60min_out_of_sample.jpeg "15min_out_of_sample")
+
+```html
+____________Performance____________
+Start Date: 2022-01-01
+End Date: 2022-08-01
+Number of Trading Days: 212
+Number of Instruments: 15
+Number of Trades: 32
+Total Return: 5.39%
+Annualized Return: 9.29%
+Sharpe Ratio: 0.75
+Rolling Maximum Drawdown: -7.62%
 ```
 
 ## Summary & Future Work
@@ -365,14 +412,14 @@ A comparison with the previous version:
         </tr>
         <tr>
             <td style="color:blue;"><b>15-min</b></td>
-            <td style="color:blue;"><b>19.46%</b></td>
-            <td style="color:blue;"><b>23.35%</b></td>
-            <td style="color:blue;"><b>1.32</b></td>
-            <td style="color:blue;"><b>1.92</b></td>
-            <td style="color:blue;"><b>-9.77%</b></td>
-            <td style="color:blue;"><b>-5.45%</b></td>
-            <td style="color:blue;"><b>126</b></td>
-            <td style="color:blue;"><b>79</b></td>
+            <td style="color:blue;"><b>44.34%</b></td>
+            <td style="color:blue;"><b>19.37%</b></td>
+            <td style="color:blue;"><b>2.97</b></td>
+            <td style="color:blue;"><b>1.76</b></td>
+            <td style="color:blue;"><b>-4.02%</b></td>
+            <td style="color:blue;"><b>-5.06%</b></td>
+            <td style="color:blue;"><b>134</b></td>
+            <td style="color:blue;"><b>83</b></td>
         </tr>
         <tr>
             <td >60-min</td>
@@ -384,6 +431,17 @@ A comparison with the previous version:
             <td>-4.58%</td>
             <td>1</td>
             <td>1</td>
+        </tr>
+        <tr>
+            <td style="color:blue;"><b>60-min</b></td>
+            <td style="color:blue;"><b>12.67%</b></td>
+            <td style="color:blue;"><b>9.29%</b></td>
+            <td style="color:blue;"><b>0.88</b></td>
+            <td style="color:blue;"><b>0.75</b></td>
+            <td style="color:blue;"><b>-8.56%</b></td>
+            <td style="color:blue;"><b>-7.62%</b></td>
+            <td style="color:blue;"><b>28</b></td>
+            <td style="color:blue;"><b>32</b></td>
         </tr>
     </tbody>
 </table>

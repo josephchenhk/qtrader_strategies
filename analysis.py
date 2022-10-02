@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 import pandas as pd
 
-from qtrader.plugins.analysis.metrics import sharp_ratio
+from qtrader.plugins.analysis.metrics import sharpe_ratio
 from qtrader.plugins.analysis.metrics import rolling_maximum_drawdown
 
 instruments = {
@@ -46,7 +46,7 @@ instruments = {
 #     number_instruments = len(opt_params)
 
 
-result_df = pd.read_csv("saved_results/v2_15min_out_of_sample/result_pairs.csv")
+result_df = pd.read_csv("saved_results/v1_60min_in_sample/result_pairs.csv")
 
 # # Plot normalized prices
 # closes_df = pd.DataFrame(
@@ -82,9 +82,13 @@ perf_df = pd.DataFrame(
 perf_df["portfolio_value"] = result_df.strategy_portfolio_value.apply(
         lambda x: sum(ast.literal_eval(x))).to_list()
 perf_daily_df = perf_df.resample('D').agg({"portfolio_value": "last"})
-sr = sharp_ratio(perf_daily_df["portfolio_value"].pct_change(), 365)
+sr = sharpe_ratio(
+    returns=(perf_daily_df["portfolio_value"].diff()
+             / perf_daily_df["portfolio_value"].iloc[0]).dropna(),
+    days=365
+)
 roll_mdd = rolling_maximum_drawdown(perf_daily_df['portfolio_value'])
-number_instruments =15 # number_instruments
+number_instruments = 15 # number_instruments
 number_of_trading_days = (perf_daily_df.index[-1] - perf_daily_df.index[0]).days
 num_trades = result_df.action.apply(lambda x: ast.literal_eval(x)[0].count('OPEN')).sum() // 2
 tot_return = (perf_daily_df["portfolio_value"].iloc[-1]

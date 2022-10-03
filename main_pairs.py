@@ -26,7 +26,7 @@ import pandas as pd
 
 from qtrader.core.position import Position
 from qtrader.core.engine import Engine
-from qtrader.core.security import Currency
+from qtrader.core.security import Currency, Futures
 from qtrader.core.event_engine import BarEventEngineRecorder, BarEventEngine
 from qtrader.core.constants import TradeMode, Exchange
 from qtrader.gateways import BacktestGateway
@@ -84,6 +84,36 @@ def run_strategy(**kwargs):
             exchange=Exchange.SMART),
     ]
 
+    # stock_list = [
+    #     Futures(
+    #         code="FUT.GC",
+    #         lot_size=100,
+    #         security_name="GCQ2",
+    #         exchange=Exchange.NYMEX,
+    #         expiry_date="20220828"),
+    #     Futures(
+    #         code="FUT.SI",
+    #         lot_size=5000,
+    #         security_name="SIU2",
+    #         exchange=Exchange.NYMEX,
+    #         expiry_date="20220927"),
+    # ]
+    #
+    # stock_list = [
+    #     Futures(
+    #         code="HK.MHImain",
+    #         lot_size=10,
+    #         security_name="HK.MHImain",
+    #         exchange=Exchange.HKFE,
+    #         expiry_date="20220930"),
+    #     Futures(
+    #         code="HK.HHImain",
+    #         lot_size=50,
+    #         security_name="HK.HHImain",
+    #         exchange=Exchange.HKFE,
+    #         expiry_date="20220930"),
+    # ]
+
     security_pairs = kwargs.get("security_pairs")
     if security_pairs:
         security_codes = []
@@ -106,7 +136,31 @@ def run_strategy(**kwargs):
             "ETH.USD": trading_sessions,
             "LTC.USD": trading_sessions,
             "TRX.USD": trading_sessions,
-            "XRP.USD": trading_sessions
+            "XRP.USD": trading_sessions,
+            "FUT.GC": [[datetime(1970, 1, 1, 10, 0, 0), datetime(1970, 1, 1, 5, 0, 0)],
+                       [datetime(1970, 1, 1, 7, 0, 0), datetime(1970, 1, 1, 9, 45, 0)]],
+            "FUT.SI": [[datetime(1970, 1, 1, 10, 0, 0), datetime(1970, 1, 1, 5, 0, 0)],
+                       [datetime(1970, 1, 1, 7, 0, 0), datetime(1970, 1, 1, 9, 45, 0)]],
+            "HK.MHImain": [
+                [datetime(1970, 1, 1, 10, 0, 0),
+                 datetime(1970, 1, 1, 12, 0, 0)],
+                [datetime(1970, 1, 1, 13, 0, 0),
+                 datetime(1970, 1, 1, 16, 30, 0)],
+                [datetime(1970, 1, 1, 17, 15, 0),
+                 datetime(1970, 1, 1, 3, 0, 0)],
+                [datetime(1970, 1, 1, 9, 15, 0),
+                 datetime(1970, 1, 1, 9, 45, 0)],
+            ],
+            "HK.HHImain": [
+                [datetime(1970, 1, 1, 10, 0, 0),
+                 datetime(1970, 1, 1, 12, 0, 0)],
+                [datetime(1970, 1, 1, 13, 0, 0),
+                 datetime(1970, 1, 1, 16, 30, 0)],
+                [datetime(1970, 1, 1, 17, 15, 0),
+                 datetime(1970, 1, 1, 3, 0, 0)],
+                [datetime(1970, 1, 1, 9, 15, 0),
+                 datetime(1970, 1, 1, 9, 45, 0)],
+            ],
         },
     )
 
@@ -133,7 +187,35 @@ def run_strategy(**kwargs):
             "ETH.USD": trading_sessions,
             "LTC.USD": trading_sessions,
             "TRX.USD": trading_sessions,
-            "XRP.USD": trading_sessions
+            "XRP.USD": trading_sessions,
+            "FUT.GC": [
+                [datetime(1970, 1, 1, 10, 0, 0), datetime(1970, 1, 1, 5, 0, 0)],
+                [datetime(1970, 1, 1, 7, 0, 0),
+                 datetime(1970, 1, 1, 9, 45, 0)]],
+            "FUT.SI": [
+                [datetime(1970, 1, 1, 10, 0, 0), datetime(1970, 1, 1, 5, 0, 0)],
+                [datetime(1970, 1, 1, 7, 0, 0),
+                 datetime(1970, 1, 1, 9, 45, 0)]],
+            "HK.MHImain": [
+                [datetime(1970, 1, 1, 10, 0, 0),
+                 datetime(1970, 1, 1, 12, 0, 0)],
+                [datetime(1970, 1, 1, 13, 0, 0),
+                 datetime(1970, 1, 1, 16, 30, 0)],
+                [datetime(1970, 1, 1, 17, 15, 0),
+                 datetime(1970, 1, 1, 3, 0, 0)],
+                [datetime(1970, 1, 1, 9, 15, 0),
+                 datetime(1970, 1, 1, 9, 45, 0)],
+            ],
+            "HK.HHImain": [
+                [datetime(1970, 1, 1, 10, 0, 0),
+                 datetime(1970, 1, 1, 12, 0, 0)],
+                [datetime(1970, 1, 1, 13, 0, 0),
+                 datetime(1970, 1, 1, 16, 30, 0)],
+                [datetime(1970, 1, 1, 17, 15, 0),
+                 datetime(1970, 1, 1, 3, 0, 0)],
+                [datetime(1970, 1, 1, 9, 15, 0),
+                 datetime(1970, 1, 1, 9, 45, 0)],
+            ],
         },
         init_strategy_cash={gateway_name: init_capital},
         init_strategy_position={gateway_name: init_position},
@@ -187,9 +269,17 @@ if __name__ == "__main__":
         ('LTC.USD', 'XRP.USD'),
         ('TRX.USD', 'XRP.USD')
     ]
+    # security_pairs_lst = [
+    #     ('FUT.GC', 'FUT.SI'),
+    # ]
+    # security_pairs_lst = [
+    #     ('HK.MHImain', 'HK.HHImain'),
+    # ]
 
     start = datetime(2022, 1, 1, 0, 0, 0)
     end = datetime(2022, 8, 1, 0, 0, 0)
+    # start = datetime(2021, 1, 1)
+    # end = datetime(2021, 7, 1)
     df = run_strategy(
         security_pairs=security_pairs_lst,
         start=start,

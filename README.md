@@ -2,7 +2,7 @@
 
 ---
 author: Joseph Chen\
-date: Sep 14th, 2022
+date: Sep 29th, 2022
 ---
 
 This demo will show how to build a practical strateqy 
@@ -56,12 +56,35 @@ Suppose `S1` and `S2` are the prices of two securities. In the
 training window, the linear regression of the logarithmic 
 prices give:
 
-$$\log(S_1) = \gamma\cdot\log(S_2) + \epsilon$$
+$$\log(S_1) = \gamma\cdot\log(S_2) + \mu + \epsilon$$
 
 where the slope $\gamma$ represents the hedge ratio.
 We can define the residual term $\epsilon$ as the spread 
-$s = \log(S_1) - \gamma\cdot\log(S_2)$, which is expected 
+$s = \log(S_1) - \gamma\cdot\log(S_2) - \mu$, which is expected 
 to exhibit mean-reverting properties. 
+
+Although this spread is mean-reverting in principle, 
+there is too much noise that could be harmful to
+the profitability and stability of the strategy. Here
+is an example of this calculated spread:
+
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/mean_reversion.jpeg "mean_reversion")
+
+The spread could be smoothed with the aid of 
+moving average. We can define the smoothed spread
+as:
+
+$$
+\tilde{s} = (s_{SMA} - \text{avg}(s_{LMA})) / \text{std}(s_{LMA}) 
+$$
+
+where $s_{SMA}$ is the short-term moving average of $s$,
+and $s_{LMS}$ is the long-term moving average of $s$.
+The moving average windows are defined in the parameters:
+`ma_short_length` and `ma_long_length`. Below is 
+the smoothed spread from previous data:
+
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/mean_reversion_ma.jpeg "mean_reversion_ma")
 
 A Two-step method will be used to find out the candidate
 pairs. In step 1, for the given lookback window, the 
@@ -89,6 +112,10 @@ the spread will mean-revert to its historical mean.
 2. Once a candidate pair is determined by the two-step
 method, it is valid throughout the next testing period, 
    and the hedge ratio will also remain unchanged.
+   
+3. The distribution of the spread follows a normal
+distribution, and the distances can be measured by
+   standard deviations.
    
 Note that in reality, there is no guarantee for any of
 the assumptions above. Violation of the assumptions
@@ -134,44 +161,76 @@ also other entry conditions: when a pair is on,
 the hedge ratio $\gamma$ should be positive. This
 is to ensure that we always have a market-neutral
 position, i.e., long position in one security
-and short position in another. And we also 
-close existing positions and avoid
+and short position in another. 
+~~And we also close existing positions and avoid
 opening new position at the end of the testing
-period.
+period.~~
+When the testing period finishes, a recalibration
+will be carried out. The cointegration properties
+are re-evaluated by measuring the 
+correlation (`corr_maintain_threshold`) and 
+cointegration p-value (`coint_pvalue_maintain_threshold`).
+If this property is violated, existing positions
+will be closed immediately; otherwise, the hedge
+ratios will be updated, and existing positions
+will be adjusted accordingly.
 
 # Simulation Results
 
 As discussed in EDA，the trading universe is six cryptocurrency 
 pairs:`BTC.USD`, `EOS.USD`, `ETH.USD`, `LTC.USD`, `TRX.USD`, 
-and`XRP.USD`.
+and`XRP.USD`. Hence there are 15 ( $C^2_6=15$ ) pairs
+for trading:
 
-The OHLCV data of different intervals (5-min, 15-min, and 30-min)
+```html
+('BTC.USD', 'EOS.USD'),
+('BTC.USD', 'ETH.USD'),
+('BTC.USD', 'LTC.USD'),
+('BTC.USD', 'TRX.USD'),
+('BTC.USD', 'XRP.USD'),
+('EOS.USD', 'ETH.USD'),
+('EOS.USD', 'LTC.USD'),
+('EOS.USD', 'TRX.USD'),
+('EOS.USD', 'XRP.USD'),
+('ETH.USD', 'LTC.USD'),
+('ETH.USD', 'TRX.USD'),
+('ETH.USD', 'XRP.USD'),
+('LTC.USD', 'TRX.USD'),
+('LTC.USD', 'XRP.USD'),
+('TRX.USD', 'XRP.USD')
+```
+
+The OHLCV data of interval 15-min
 are used for simulations. The look-back 
-window is fixed to be 960 bars (`lookback_period=960`). 
+window is fixed to be 4000 bars (`lookback_period=4000`). 
 In the training period, we apply a two-step 
 statistical method to the data in lookback window to 
 determine the candidate pairs. Only those pairs with 
 a correlation higher than the threshold 
-(`correlation_threshold=0.8`) and an 
+(`corr_init_threshold=0.85`) and an 
 ADF p-value less than the threshold 
-(`cointegration_pvalue_entry_threshold=0.1`) will be shortlisted. 
+(`coint_pvalue_init_threshold=0.01`) will be shortlisted. 
 The trading
-window is next 480 bars (`recalibration_interval=480`) immediately 
+window is next few bars (use `recalibration_lookback_ratio`
+to calculate it as a portion of the lookback period) immediately 
 following the previous training period. When the trading period 
 completes, the dynamic rolling window will be automatically 
-shifted 480 bars ahead
-for the next training and trading periods.
+shifted ahead for the next training and trading periods.
 In the trading period, the spread 
-$s = \log(S_1) - \gamma\cdot\log(S_2)$ is updated
+$s = \log(S_1) - \gamma\cdot\log(S_2) - \mu$ 
+(and thus $\tilde{s}$) is updated
 by feeding the new price $S_1$ and $S_2$, and entry and
 exit are determined by z-score of the calculated spread.
 
-The entry threshold is defined as anything between 1.5-sigma and 2-sigma
-(`1.5 < entry_threshold < 2.0`); and the exit threshold is defined
-as anything between 2.5-sigma and 3.5-sigma
-(`2.5 < exit_threshold < 3.5`). These parameters will change as per the 
-backtesting results and individual security without risking overfitting 
-data. We also assume for each trading opportunity, 
+Assuming the spread follows normal distribution, 
+the entry threshold is defined as percentile
+level of 75% (`entry_threshold_pct = 0.75`); and the 
+exit threshold is defined
+as percentile level of 99%
+(`exit_threshold_pct = 0.99`). To avoid overfit, 
+these parameters will stay invariant throughout 
+the training and testing periods. We also assume for 
+each trading opportunity, 
 the maximum capital allocated to individual security 
 is USD 1 million (`capital_per_entry=1000000`). And we 
 only enter the trade once for repeating signals 
@@ -180,243 +239,133 @@ only enter the trade once for repeating signals
 A summary of the strategy parameters is shown below:
 
 ```json
-"lookback_period": 960,
-"correlation_threshold": 0.8,
-"recalibration_interval": 480,
-"cointegration_pvalue_entry_threshold": 0.1,
-"entry_threshold": [1.5, 2.0],
-"exit_threshold": [2.5, 3.5],
+"lookback_period": 4000,
+"recalibration_lookback_ratio": 0.12,
+"corr_init_threshold": 0.85,
+"corr_maintain_threshold": 0.65,
+"coint_pvalue_init_threshold": 0.01,
+"coint_pvalue_maintain_threshold": 0.10,
+"entry_threshold_pct": 0.75,
+"exit_threshold_pct": 0.99,
 "max_number_of_entry": 1,
-"capital_per_entry": 1000000
+"capital_per_entry": 1000000,
+"ma_short_length": 50,
+"ma_long_length": 200
 ```
 
 ## Optimization Objective Function
 
 The objective of the strategy is to maximize the 
-Sharpe ratio and the total return. Therefore, the objective
+the total return and minimize the drawdown. 
+Therefore, the objective
 function is defined as minimizing $f$:
 
 $$
-f(entry\textunderscore threshold, exit\textunderscore threshold) 
-= -\min(\max(\text{SR}, 0), 0.5) * \text{TOTR}
+f(recalibration\textunderscore lookback\textunderscore ratio, 
+ma\textunderscore short\textunderscore length) 
+= -\text{TOTR}/\text{MDD}
 $$
 
-where $\text{SR}$ is the Sharpe ratio, and $\text{TOTR}$ is the total
-return. 
-
-## 5-min Interval
-
-We firstly test the strategy in a 5-min interval. This
-means we have a training window (lookback window) of 80 hours 
-($5 * 960 / 60 = 80$), and a testing window (trading window)
-of 40 hours.
-
-In the training dataset (in-sample), we trained the model 
-and selected the cryptocurrency pairs with negative best loss 
-as we are minimizing the objective function. There are 7 
-pairs that are selected. And the strategy will be tested on both 
-in-sample and out-of-sample datasets.
-
-```html
-{
-    ('EOS.USD', 'ETH.USD'): {
-        'entry_threshold': 1.5000392943615142, 
-        'exit_threshold': 3.376602464111785, 
-        'best_loss': -0.03475020027151503}, 
-    ('TRX.USD', 'XRP.USD'): {
-        'entry_threshold': 1.551051140512154, 
-        'exit_threshold': 3.017624989640105, 
-        'best_loss': -0.08643681591995156}, 
-    ('BTC.USD', 'EOS.USD'): {
-        'entry_threshold': 1.9633378226348694, 
-        'exit_threshold': 3.329967191852652, 
-        'best_loss': -0.017663755051963572}, 
-    ('EOS.USD', 'LTC.USD'): {
-        'entry_threshold': 1.7693316696798091,
-        'exit_threshold': 2.5532912245203043, 
-        'best_loss': -0.016165476679308892}, 
-    ('BTC.USD', 'LTC.USD'): {
-        'entry_threshold': 1.8775675045977969, 
-        'exit_threshold': 2.670390189458025, 
-        'best_loss': -0.007816275748584213}, 
-    ('ETH.USD', 'LTC.USD'): {
-        'entry_threshold': 1.762856210892485, 
-        'exit_threshold': 2.707378771966564, 
-        'best_loss': -0.014213080160328405}, 
-    ('BTC.USD', 'ETH.USD'): {
-        'entry_threshold': 1.9332887682355882, 
-        'exit_threshold': 3.407991025881241, 
-        'best_loss': -0.005658161919799375}
-}
-```
-
-### In-sample
-Below is the Backtest result from 2021-01-01 to 2021-12-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/5min_in_sample.jpeg "5min_in_sample")
-
-```html
-____________Performance____________
-Start Date: 2021-01-01
-End Date: 2022-01-01
-Number of Trading Days: 365
-Number of Instruments: 7
-Number of Trades: 168
-Total Return: 6.38%
-Annualized Return: 6.38%
-Sharpe Ratio: 0.96
-Rolling Maximum Drawdown: -5.39%
-```
-
-### Out-of-sample
-
-Below is the Backtest result from 2021-01-01 to 2022-01-01: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/5min_out_of_sample.jpeg "5min_out_of_sample")
-
-```html
-____________Performance____________
-Start Date: 2022-01-01
-End Date: 2022-08-01
-Number of Trading Days: 212
-Number of Instruments: 7
-Number of Trades: 89
-Total Return: 1.82%
-Annualized Return: 3.14%
-Sharpe Ratio: 0.82
-Rolling Maximum Drawdown: -3.00%
-```
+where $\text{MDD}$ is the maximum drawdown, and $\text{TOTR}$ is the total
+return.
 
 ## 15-min Interval
 
 We then test the strategy in a 15-min interval. This
-means we have a training window (lookback window) of 10 days 
-($15 * 960 / (60 * 24) = 10$), and a testing window (trading window)
-of 5 days.
+means we have a training window (lookback window) of 
+roughly 42 days 
+($15 * 4000 / (60 * 24) = 41.6$), and a testing window 
+(trading window) that is calculated from
+`recalibration_lookback_ratio`.
 
-As discussed, there are 5 pairs that 
-are selected. And the strategy will be tested on both 
+The strategy is tested on both 
 in-sample and out-of-sample datasets.
-
-```html
-{
-    ('EOS.USD', 'LTC.USD'): {
-        'entry_threshold': 1.85083364536054, 
-        'exit_threshold': 3.224360323840364, 
-        'best_loss': -0.047703687981827114}, 
-    ('EOS.USD', 'XRP.USD'): {
-        'entry_threshold': 1.8869138038036657, 
-        'exit_threshold': 2.9094095009860723, 
-        'best_loss': -0.046187517027634906}, 
-    ('BTC.USD', 'EOS.USD'): {
-        'entry_threshold': 1.8767472177155844, 
-        'exit_threshold': 2.6226223785191993, 
-        'best_loss': -6.446680549378299e-05}, 
-    ('EOS.USD', 'ETH.USD'): {
-        'entry_threshold': 1.603040067942517, 
-        'exit_threshold': 3.4874437489605867, 
-        'best_loss': -0.10111409247066716}, 
-    ('TRX.USD', 'XRP.USD'): {
-        'entry_threshold': 1.5092092690764671,
-        'exit_threshold': 2.912104597010566, 
-        'best_loss': -0.0025735030462288046}
-}
-```
 
 ### In-sample
 Below is the Backtest result from 2021-01-01 to 2021-12-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/15min_in_sample.jpeg "15min_in_sample")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_15min_in_sample.jpeg "15min_in_sample")
 
 ```html
 ____________Performance____________
 Start Date: 2021-01-01
 End Date: 2022-01-01
 Number of Trading Days: 365
-Number of Instruments: 5
-Number of Trades: 33
-Total Return: 8.14%
-Annualized Return: 8.14%
-Sharpe Ratio: 1.20
-Rolling Maximum Drawdown: -4.92%
+Number of Instruments: 15
+Number of Trades: 134
+Total Return: 44.34%
+Annualized Return: 44.34%
+Sharpe Ratio: 2.97
+Rolling Maximum Drawdown: -4.02%
 ```
 
 ### Out-of_sample
 
-Below is the Backtest result from 2021-01-01 to 2022-01-01: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/15min_out_of_sample.jpeg "15min_out_of_sample")
+Below is the Backtest result from 2022-01-01 to 2022-07-31: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_15min_out_of_sample.jpeg "15min_out_of_sample")
 
 ```html
 ____________Performance____________
 Start Date: 2022-01-01
 End Date: 2022-08-01
 Number of Trading Days: 212
-Number of Instruments: 5
-Number of Trades: 13
-Total Return: -8.47%
-Annualized Return: -14.59%
-Sharpe Ratio: -1.38
-Rolling Maximum Drawdown: -11.29%
+Number of Instruments: 15
+Number of Trades: 83
+Total Return: 11.25%
+Annualized Return: 19.37%
+Sharpe Ratio: 1.76
+Rolling Maximum Drawdown: -5.06%
 ```
 
 ## 60-min Interval
 
 We then test the strategy in a 60-min interval. This
-means we have a training window (lookback window) of 40 days 
-($60 * 960 / (60 * 24) = 40$), and a testing window (trading window)
-of 10 days.
+means we have a training window (lookback window) of 
+roughly 167 days 
+($60 * 4000 / (60 * 24) = 166.7$), and a testing window 
+(trading window) that is calculated from
+`recalibration_lookback_ratio`.
 
-As discussed, there is one pair that 
-are selected. And the strategy will be tested on both 
+The strategy is tested on both 
 in-sample and out-of-sample datasets.
-
-```html
-{
-    ('BTC.USD', 'LTC.USD'): {
-        'entry_threshold': 1.8959144645762966, 
-        'exit_threshold': 2.9436715640836755, 
-        'best_loss': -0.08387009026604986}
-}
-```
 
 ### In-sample
 Below is the Backtest result from 2021-01-01 to 2021-12-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/60min_in_sample.jpeg "60min_in_sample")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_60min_in_sample.jpeg "15min_in_sample")
 
 ```html
 ____________Performance____________
 Start Date: 2021-01-01
 End Date: 2022-01-01
 Number of Trading Days: 365
-Number of Instruments: 1
-Number of Trades: 1
-Total Return: 16.77%
-Annualized Return: 16.77%
-Sharpe Ratio: 1.30
-Rolling Maximum Drawdown: -4.40%
+Number of Instruments: 15
+Number of Trades: 28
+Total Return: 12.67%
+Annualized Return: 12.67%
+Sharpe Ratio: 0.88
+Rolling Maximum Drawdown: -8.56%
 ```
 
-### Out-of-sample
+### Out-of_sample
 
-Below is the Backtest result from 2021-01-01 to 2022-01-01: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/60min_out_of_sample.jpeg "60min_out_of_sample")
+Below is the Backtest result from 2022-01-01 to 2022-07-31: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_60min_out_of_sample.jpeg "15min_out_of_sample")
 
 ```html
 ____________Performance____________
 Start Date: 2022-01-01
 End Date: 2022-08-01
 Number of Trading Days: 212
-Number of Instruments: 1
-Number of Trades: 1
-Total Return: 7.72%
-Annualized Return: 13.28%
-Sharpe Ratio: 1.15
-Rolling Maximum Drawdown: -4.58%
+Number of Instruments: 15
+Number of Trades: 32
+Total Return: 5.39%
+Annualized Return: 9.29%
+Sharpe Ratio: 0.75
+Rolling Maximum Drawdown: -7.62%
 ```
 
 ## Summary & Future Work
 
-As can be seen, both the 5-min and 60-min intervals deliver
-positive returns in both in-sample and out-of-sample datasets.
-However, as the interval increases, the trading opportunities
-decrease. 
+A comparison with the previous version:
 
 <table>
     <thead>
@@ -462,6 +411,17 @@ decrease.
             <td>13</td>
         </tr>
         <tr>
+            <td style="color:blue;"><b>15-min</b></td>
+            <td style="color:blue;"><b>44.34%</b></td>
+            <td style="color:blue;"><b>19.37%</b></td>
+            <td style="color:blue;"><b>2.97</b></td>
+            <td style="color:blue;"><b>1.76</b></td>
+            <td style="color:blue;"><b>-4.02%</b></td>
+            <td style="color:blue;"><b>-5.06%</b></td>
+            <td style="color:blue;"><b>134</b></td>
+            <td style="color:blue;"><b>83</b></td>
+        </tr>
+        <tr>
             <td >60-min</td>
             <td>16.77%</td>
             <td>13.28%</td>
@@ -472,16 +432,27 @@ decrease.
             <td>1</td>
             <td>1</td>
         </tr>
+        <tr>
+            <td style="color:blue;"><b>60-min</b></td>
+            <td style="color:blue;"><b>12.67%</b></td>
+            <td style="color:blue;"><b>9.29%</b></td>
+            <td style="color:blue;"><b>0.88</b></td>
+            <td style="color:blue;"><b>0.75</b></td>
+            <td style="color:blue;"><b>-8.56%</b></td>
+            <td style="color:blue;"><b>-7.62%</b></td>
+            <td style="color:blue;"><b>28</b></td>
+            <td style="color:blue;"><b>32</b></td>
+        </tr>
     </tbody>
 </table>
 
 There is a lot of work to be done to improve the strategy, which is 
 included but not limited to:
 
-- (1). In practice, the model should be trained
-  in a dynamic rolling window, i.e., recalibrating
-the parameters `entry_threshold` and `exit_threshold` regularly.
-  The code for optimization is in `optimization_pair.py`.
+~~- (1). In practice, the model should be trained 
+in a dynamic rolling window, i.e., recalibrating
+the parameters `entry_threshold` and `exit_threshold` regularly. 
+The code for optimization is in `optimization_pair.py`.~~
   
 - (2). Consider a vectorization (dataframe/numpy) implementation 
   of the backtest, to increase the optimization speed. It
@@ -501,8 +472,8 @@ to obtain the regression coefficients (hedge ratios).
   
 - (6). Consider transaction costs in the simulation.
 
-- (7). Consider different lookback window and trading window
-for different time intervals.
+~~- (7). Consider different lookback window and 
+trading window for different time intervals.~~
   
 - (8). Utilize a one-period execution lag for all trade
 orders to approximate the bid-ask spread since 

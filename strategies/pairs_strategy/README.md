@@ -269,6 +269,53 @@ $$
 where $\text{MDD}$ is the maximum drawdown, and $\text{TOTR}$ is the total
 return.
 
+## 5-min Interval
+
+We firstly test the strategy in a 5-min interval. This
+means we have a training window (lookback window) of 
+roughly 14 days 
+($5 * 4000 / (60 * 24) = 13.8$), and a testing window 
+(trading window) that is calculated from
+`recalibration_lookback_ratio`.
+
+The strategy is tested on both 
+in-sample and out-of-sample datasets.
+
+### In-sample
+Below is the Backtest result from 2021-01-01 to 2021-12-31: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_5min_in_sample.jpeg "5min_in_sample")
+
+```html
+____________Performance____________
+Start Date: 2021-01-01
+End Date: 2022-01-01
+Number of Trading Days: 365
+Number of Instruments: 15
+Number of Trades: 380
+Total Return: 23.50%
+Annualized Return: 23.50%
+Sharpe Ratio: 1.61
+Rolling Maximum Drawdown: -9.66%
+```
+
+### Out-of_sample
+
+Below is the Backtest result from 2022-01-01 to 2022-07-31: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_5min_out_of_sample.jpeg "5min_out_of_sample")
+
+```html
+____________Performance____________
+Start Date: 2022-01-01
+End Date: 2022-08-01
+Number of Trading Days: 212
+Number of Instruments: 15
+Number of Trades: 303
+Total Return: 0.37%
+Annualized Return: 0.65%
+Sharpe Ratio: 0.05
+Rolling Maximum Drawdown: -5.88%
+```
+
 ## 15-min Interval
 
 We then test the strategy in a 15-min interval. This
@@ -398,6 +445,17 @@ A comparison with the previous version:
             <td>-3.00%</td>
             <td>168</td>
             <td>89</td>
+        </tr>
+        <tr>
+            <td style="color:blue;"><b>5-min</b></td>
+            <td style="color:blue;"><b>23.50%</b></td>
+            <td style="color:blue;"><b>0.65%</b></td>
+            <td style="color:blue;"><b>1.61</b></td>
+            <td style="color:blue;"><b>0.05</b></td>
+            <td style="color:blue;"><b>-9.66%</b></td>
+            <td style="color:blue;"><b>-5.88%</b></td>
+            <td style="color:blue;"><b>380</b></td>
+            <td style="color:blue;"><b>303</b></td>
         </tr>
         <tr>
             <td >15-min</td>

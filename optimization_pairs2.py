@@ -29,7 +29,7 @@ from hyperopt import STATUS_OK
 
 from main_pairs import run_strategy
 # from pandas_pairs import run_strategy
-from qtrader.plugins.analysis.metrics import sharp_ratio, rolling_maximum_drawdown
+from qtrader.plugins.analysis.metrics import sharpe_ratio, rolling_maximum_drawdown
 from qtrader.core.utility import timeit
 
 
@@ -50,8 +50,11 @@ def objective(args, **kwargs):
         )
         df_daily = df.set_index('datetime').resample('D').agg(
             {"portfolio_value": "last"}).dropna()
-        sr = sharp_ratio(
-            returns=df_daily["portfolio_value"].pct_change().dropna().to_numpy()
+        sr = sharpe_ratio(
+            returns=(
+                df_daily["portfolio_value"].diff()
+                / df_daily["portfolio_value"].iloc[0]).dropna(),
+            days=256
         )
         tot_r = df_daily["portfolio_value"].iloc[-1] / df["portfolio_value"].iloc[0] - 1.0
         mdd = rolling_maximum_drawdown(
@@ -63,7 +66,7 @@ def objective(args, **kwargs):
         else:
             RoMaD = -tot_r / mdd
         return {
-            'loss': -RoMaD,
+            'loss': -sr,
             'status': STATUS_OK,
             'sharpe_ratio': sr,
             'total_return': tot_r,
@@ -86,7 +89,7 @@ def worker(
                 end=end),
         space,
         algo=tpe.suggest,
-        max_evals=25,
+        max_evals=30,
         trials=trials
     )
     opt_params = {}
@@ -101,6 +104,7 @@ def worker(
             'return_over_maximum_drawdown': trials.best_trial['result'][
                 'return_over_maximum_drawdown'],
         }
+    print(opt_params)
     # Save to pkl file
     start_str = start.strftime("%Y%m%d")
     end_str = end.strftime("%Y%m%d")
@@ -112,10 +116,10 @@ def worker(
     return opt_params
 
 # define a search space
-ma_short_length_choice = [20, 30, 40, 50, 60, 70, 80, 90, 100]
+ma_short_length_choice = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150]
 space = hp.choice('a', [
       ('case 1',
-       hp.uniform('recalibration_lookback_ratio', 0.05, 0.20),
+       hp.uniform('recalibration_lookback_ratio', 0.01, 0.30),
        hp.choice('ma_short_length', ma_short_length_choice),
        )]
 )
@@ -142,47 +146,28 @@ security_pairs_lst = [
 if __name__ == "__main__":
 
     dates = [
-        # (datetime(2020, 1, 1), datetime(2021, 1, 1)),
-        # (datetime(2020, 2, 1), datetime(2021, 2, 1)),
-        # (datetime(2020, 3, 1), datetime(2021, 3, 1)),
-        # (datetime(2020, 4, 1), datetime(2021, 4, 1)),
-        # (datetime(2020, 5, 1), datetime(2021, 5, 1)),
-        # (datetime(2020, 6, 1), datetime(2021, 6, 1)),
-        # (datetime(2020, 7, 1), datetime(2021, 7, 1)),
-        # (datetime(2020, 8, 1), datetime(2021, 8, 1)),
-        # (datetime(2020, 9, 1), datetime(2021, 9, 1)),
-        # (datetime(2020, 10, 1), datetime(2021, 10, 1)),
-        # (datetime(2020, 11, 1), datetime(2021, 11, 1)),
-        # (datetime(2020, 12, 1), datetime(2021, 12, 1)),
-        # (datetime(2021, 1, 1), datetime(2022, 1, 1)),
-        # (datetime(2021, 2, 1), datetime(2022, 2, 1)),
-        # (datetime(2021, 3, 1), datetime(2022, 3, 1)),
-        # (datetime(2021, 4, 1), datetime(2022, 4, 1)),
-        # (datetime(2021, 5, 1), datetime(2022, 5, 1)),
-        # (datetime(2021, 6, 1), datetime(2022, 6, 1)),
-        # (datetime(2021, 7, 1), datetime(2022, 7, 1)),
-        # (datetime(2021, 8, 1), datetime(2022, 8, 1)),
+        # (datetime(2020, 7, 1), datetime(2021, 1, 1)),
+        # (datetime(2020, 8, 1), datetime(2021, 2, 1)),
+        # (datetime(2020, 9, 1), datetime(2021, 3, 1)),
+        # (datetime(2020, 10, 1), datetime(2021, 4, 1)),
+        # (datetime(2020, 11, 1), datetime(2021, 5, 1)),
+        # (datetime(2020, 12, 1), datetime(2021, 6, 1)),
+        # (datetime(2021, 1, 1), datetime(2021, 7, 1)),
+        # (datetime(2021, 2, 1), datetime(2021, 8, 1)),
+        # (datetime(2021, 3, 1), datetime(2021, 9, 1)),
+        # (datetime(2021, 4, 1), datetime(2021, 10, 1)),
+        # (datetime(2021, 5, 1), datetime(2021, 11, 1)),
+        # (datetime(2021, 6, 1), datetime(2021, 12, 1)),
+        # (datetime(2021, 7, 1), datetime(2022, 1, 1)),
+        # (datetime(2021, 8, 1), datetime(2022, 2, 1)),
+        # (datetime(2021, 9, 1), datetime(2022, 3, 1)),
+        # (datetime(2021, 10, 1), datetime(2022, 4, 1)),
+        # (datetime(2021, 11, 1), datetime(2022, 5, 1)),
+        # (datetime(2021, 12, 1), datetime(2022, 6, 1)),
+        # (datetime(2022, 1, 1), datetime(2022, 7, 1)),
+        # (datetime(2022, 2, 1), datetime(2022, 8, 1)),
 
-        (datetime(2020, 7, 1), datetime(2021, 1, 1)),
-        (datetime(2020, 8, 1), datetime(2021, 2, 1)),
-        (datetime(2020, 9, 1), datetime(2021, 3, 1)),
-        (datetime(2020, 10, 1), datetime(2021, 4, 1)),
-        (datetime(2020, 11, 1), datetime(2021, 5, 1)),
-        (datetime(2020, 12, 1), datetime(2021, 6, 1)),
-        (datetime(2021, 1, 1), datetime(2021, 7, 1)),
-        (datetime(2021, 2, 1), datetime(2021, 8, 1)),
-        (datetime(2021, 3, 1), datetime(2021, 9, 1)),
-        (datetime(2021, 4, 1), datetime(2021, 10, 1)),
-        (datetime(2021, 5, 1), datetime(2021, 11, 1)),
-        (datetime(2021, 6, 1), datetime(2021, 12, 1)),
-        (datetime(2021, 7, 1), datetime(2022, 1, 1)),
-        (datetime(2021, 8, 1), datetime(2022, 2, 1)),
-        (datetime(2021, 9, 1), datetime(2022, 3, 1)),
-        (datetime(2021, 10, 1), datetime(2022, 4, 1)),
-        (datetime(2021, 11, 1), datetime(2022, 5, 1)),
-        (datetime(2021, 12, 1), datetime(2022, 6, 1)),
-        (datetime(2022, 1, 1), datetime(2022, 7, 1)),
-        (datetime(2022, 2, 1), datetime(2022, 8, 1)),
+        (datetime(2021, 1, 1), datetime(2022, 1, 1)),
     ]
 
     manager = multiprocessing.Manager()

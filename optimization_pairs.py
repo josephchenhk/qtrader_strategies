@@ -29,7 +29,7 @@ from hyperopt import STATUS_OK
 
 from main_pairs import run_strategy
 # from pandas_pairs import run_strategy
-from qtrader.plugins.analysis.metrics import sharp_ratio, rolling_maximum_drawdown
+from qtrader.plugins.analysis.metrics import sharpe_ratio, rolling_maximum_drawdown
 from qtrader.core.utility import timeit
 
 
@@ -50,8 +50,11 @@ def objective(args, **kwargs):
         )
         df_daily = df.set_index('datetime').resample('D').agg(
             {"portfolio_value": "last"}).dropna()
-        sr = sharp_ratio(
-            returns=df_daily["portfolio_value"].pct_change().dropna().to_numpy()
+        sr = sharpe_ratio(
+            returns=(
+                df_daily["portfolio_value"].diff()
+                / df_daily["portfolio_value"].iloc[0]).dropna(),
+            days=365
         )
         tot_r = df_daily["portfolio_value"].iloc[-1] / df["portfolio_value"].iloc[0] - 1.0
         mdd = rolling_maximum_drawdown(

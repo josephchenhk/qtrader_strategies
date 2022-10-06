@@ -168,6 +168,9 @@ if __name__ == "__main__":
         # (datetime(2022, 2, 1), datetime(2022, 8, 1)),
 
         (datetime(2021, 1, 1), datetime(2022, 1, 1)),
+        (datetime(2021, 3, 1), datetime(2022, 3, 1)),
+        (datetime(2021, 5, 1), datetime(2022, 5, 1)),
+        (datetime(2021, 7, 1), datetime(2022, 7, 1)),
     ]
 
     manager = multiprocessing.Manager()

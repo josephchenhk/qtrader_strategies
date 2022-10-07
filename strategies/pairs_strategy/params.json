@@ -4,12 +4,12 @@
   "corr_init_threshold": 0.85,
   "corr_maintain_threshold": 0.65,
   "coint_pvalue_init_threshold": 0.01,
-  "coint_pvalue_maintain_threshold": 0.05,
+  "coint_pvalue_maintain_threshold": 0.10,
   "entry_threshold_pct": 0.75,
   "exit_threshold_pct": 0.99,
   "max_number_of_entry": 1,
-  "capital_per_entry": 5000000,
+  "capital_per_entry": 1000000,
   "ma_short_length": null,
-  "ma_long_length": 200,
-  "load_params": 1
+  "ma_long_length": 150,
+  "load_params": 0
 }

@@ -33,6 +33,7 @@ from qtrader.core.utility import timeit
 from main_pairs_stocks import run_strategy
 # from pandas_pairs import run_strategy
 
+SEED = 2022
 
 # define an objective function
 def objective(args, **kwargs):
@@ -91,7 +92,8 @@ def worker(
         space,
         algo=tpe.suggest,
         max_evals=30,
-        trials=trials
+        trials=trials,
+        rstate=np.random.default_rng(SEED)
     )
     opt_params = {}
     for security_pair in security_pairs:
@@ -105,10 +107,17 @@ def worker(
             'return_over_maximum_drawdown': trials.best_trial['result'][
                 'return_over_maximum_drawdown'],
         }
-    print(opt_params)
-    # Save to pkl file
+
     start_str = start.strftime("%Y%m%d")
     end_str = end.strftime("%Y%m%d")
+    # Save trials to pkl
+    with open(
+            f"opt_params/opt_params_trials_{start_str}_{end_str}.pkl",
+            "wb") as f:
+        pickle.dump(trials.trials, f)
+    print(f"Optimization trials for {start_str}-{end_str} is done.")
+
+    # Save to pkl file
     with open(
             f"opt_params/opt_params_{start_str}_{end_str}.pkl",
             "wb") as f:
@@ -120,7 +129,7 @@ def worker(
 ma_short_length_choice = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140]
 space = hp.choice('a', [
       ('case 1',
-       hp.uniform('recalibration_lookback_ratio', 0.01, 0.30),
+       hp.uniform('recalibration_lookback_ratio', 0.02, 0.25),
        hp.choice('ma_short_length', ma_short_length_choice),
        )]
 )
@@ -129,30 +138,22 @@ space = hp.choice('a', [
 security_pairs_lst = [
     ('HK.00175', 'HK.00305'),
     ('HK.00175', 'HK.00489'),
-    ('HK.00175', 'HK.00708'),
     ('HK.00175', 'HK.01122'),
     ('HK.00175', 'HK.01211'),
     ('HK.00175', 'HK.01958'),
     ('HK.00175', 'HK.02238'),
     ('HK.00175', 'HK.02333'),
     ('HK.00305', 'HK.00489'),
-    ('HK.00305', 'HK.00708'),
     ('HK.00305', 'HK.01122'),
     ('HK.00305', 'HK.01211'),
     ('HK.00305', 'HK.01958'),
     ('HK.00305', 'HK.02238'),
     ('HK.00305', 'HK.02333'),
-    ('HK.00489', 'HK.00708'),
     ('HK.00489', 'HK.01122'),
     ('HK.00489', 'HK.01211'),
     ('HK.00489', 'HK.01958'),
     ('HK.00489', 'HK.02238'),
     ('HK.00489', 'HK.02333'),
-    ('HK.00708', 'HK.01122'),
-    ('HK.00708', 'HK.01211'),
-    ('HK.00708', 'HK.01958'),
-    ('HK.00708', 'HK.02238'),
-    ('HK.00708', 'HK.02333'),
     ('HK.01122', 'HK.01211'),
     ('HK.01122', 'HK.01958'),
     ('HK.01122', 'HK.02238'),
@@ -168,27 +169,6 @@ security_pairs_lst = [
 if __name__ == "__main__":
 
     dates = [
-        # (datetime(2020, 7, 1), datetime(2021, 1, 1)),
-        # (datetime(2020, 8, 1), datetime(2021, 2, 1)),
-        # (datetime(2020, 9, 1), datetime(2021, 3, 1)),
-        # (datetime(2020, 10, 1), datetime(2021, 4, 1)),
-        # (datetime(2020, 11, 1), datetime(2021, 5, 1)),
-        # (datetime(2020, 12, 1), datetime(2021, 6, 1)),
-        # (datetime(2021, 1, 1), datetime(2021, 7, 1)),
-        # (datetime(2021, 2, 1), datetime(2021, 8, 1)),
-        # (datetime(2021, 3, 1), datetime(2021, 9, 1)),
-        # (datetime(2021, 4, 1), datetime(2021, 10, 1)),
-        # (datetime(2021, 5, 1), datetime(2021, 11, 1)),
-        # (datetime(2021, 6, 1), datetime(2021, 12, 1)),
-        # (datetime(2021, 7, 1), datetime(2022, 1, 1)),
-        # (datetime(2021, 8, 1), datetime(2022, 2, 1)),
-        # (datetime(2021, 9, 1), datetime(2022, 3, 1)),
-        # (datetime(2021, 10, 1), datetime(2022, 4, 1)),
-        # (datetime(2021, 11, 1), datetime(2022, 5, 1)),
-        # (datetime(2021, 12, 1), datetime(2022, 6, 1)),
-        # (datetime(2022, 1, 1), datetime(2022, 7, 1)),
-        # (datetime(2022, 2, 1), datetime(2022, 8, 1)),
-
         (datetime(2021, 4, 1), datetime(2022, 1, 1)),
         (datetime(2021, 6, 1), datetime(2022, 3, 1)),
         (datetime(2021, 8, 1), datetime(2022, 5, 1)),
@@ -198,8 +178,9 @@ if __name__ == "__main__":
     manager = multiprocessing.Manager()
     jobs = []
     for start, end in dates:
-        start_str = start.strftime("%Y%m%d")
-        end_str = end.strftime("%Y%m%d")
+
+        # # Sync
+        # worker(security_pairs_lst, start, end)
 
         # Parallel
         p = multiprocessing.Process(

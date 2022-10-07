@@ -77,7 +77,7 @@ def run_strategy(**kwargs):
         Stock(code='HK.00175', lot_size=1000, security_name='吉利汽车'),
         Stock(code='HK.00305', lot_size=10000, security_name='五菱汽车'),
         Stock(code='HK.00489', lot_size=2000, security_name='东风集团股份'),
-        Stock(code='HK.00708', lot_size=500, security_name='恒大汽车'),
+        # Stock(code='HK.00708', lot_size=500, security_name='恒大汽车'),
         # Stock(code='HK.01114', lot_size=2000, security_name='华晨中国'),
         Stock(code='HK.01122', lot_size=2000, security_name='庆铃汽车股份'),
         Stock(code='HK.01211', lot_size=500, security_name='比亚迪股份'),

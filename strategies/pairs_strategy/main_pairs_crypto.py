@@ -2,7 +2,7 @@
 # @Time    : 9/6/2022 4:45 PM
 # @Author  : Joseph Chen
 # @Email   : josephchenhk@gmail.com
-# @FileName: main_pairs.py
+# @FileName: main_pairs_crypto.py
 
 """
 Copyright (C) 2020 Joseph Chen - All Rights Reserved
@@ -18,7 +18,25 @@ this file. If not, please write to: josephchenhk@gmail.com
 #                                                                        #
 #                    Pairs Trading strategy                              #
 ##########################################################################
-import pickle
+
+"""
+{
+  "lookback_period": 4000,
+  "recalibration_lookback_ratio": 0.161,
+  "corr_init_threshold": 0.85,
+  "corr_maintain_threshold": 0.65,
+  "coint_pvalue_init_threshold": 0.01,
+  "coint_pvalue_maintain_threshold": 0.10,
+  "entry_threshold_pct": 0.75,
+  "exit_threshold_pct": 0.99,
+  "max_number_of_entry": 1,
+  "capital_per_entry": 1000000,
+  "ma_short_length": 10,
+  "ma_long_length": 200,
+  "load_params": 1
+}
+"""
+import json
 import itertools
 from datetime import datetime
 
@@ -33,8 +51,11 @@ from qtrader.gateways import BacktestGateway
 from qtrader.gateways.backtest import BacktestFees
 from strategies.pairs_strategy import PairsStrategy
 
+with open("params.json", "r") as f:
+    params = json.load(f)
 
 def run_strategy(**kwargs):
+
     trading_sessions = [
         [datetime(1970, 1, 1, 0, 0, 0),
          datetime(1970, 1, 1, 23, 59, 59)],
@@ -84,36 +105,6 @@ def run_strategy(**kwargs):
             exchange=Exchange.SMART),
     ]
 
-    # stock_list = [
-    #     Futures(
-    #         code="FUT.GC",
-    #         lot_size=100,
-    #         security_name="GCQ2",
-    #         exchange=Exchange.NYMEX,
-    #         expiry_date="20220828"),
-    #     Futures(
-    #         code="FUT.SI",
-    #         lot_size=5000,
-    #         security_name="SIU2",
-    #         exchange=Exchange.NYMEX,
-    #         expiry_date="20220927"),
-    # ]
-    #
-    # stock_list = [
-    #     Futures(
-    #         code="HK.MHImain",
-    #         lot_size=10,
-    #         security_name="HK.MHImain",
-    #         exchange=Exchange.HKFE,
-    #         expiry_date="20220930"),
-    #     Futures(
-    #         code="HK.HHImain",
-    #         lot_size=50,
-    #         security_name="HK.HHImain",
-    #         exchange=Exchange.HKFE,
-    #         expiry_date="20220930"),
-    # ]
-
     security_pairs = kwargs.get("security_pairs")
     if security_pairs:
         security_codes = []
@@ -137,30 +128,6 @@ def run_strategy(**kwargs):
             "LTC.USD": trading_sessions,
             "TRX.USD": trading_sessions,
             "XRP.USD": trading_sessions,
-            "FUT.GC": [[datetime(1970, 1, 1, 10, 0, 0), datetime(1970, 1, 1, 5, 0, 0)],
-                       [datetime(1970, 1, 1, 7, 0, 0), datetime(1970, 1, 1, 9, 45, 0)]],
-            "FUT.SI": [[datetime(1970, 1, 1, 10, 0, 0), datetime(1970, 1, 1, 5, 0, 0)],
-                       [datetime(1970, 1, 1, 7, 0, 0), datetime(1970, 1, 1, 9, 45, 0)]],
-            "HK.MHImain": [
-                [datetime(1970, 1, 1, 10, 0, 0),
-                 datetime(1970, 1, 1, 12, 0, 0)],
-                [datetime(1970, 1, 1, 13, 0, 0),
-                 datetime(1970, 1, 1, 16, 30, 0)],
-                [datetime(1970, 1, 1, 17, 15, 0),
-                 datetime(1970, 1, 1, 3, 0, 0)],
-                [datetime(1970, 1, 1, 9, 15, 0),
-                 datetime(1970, 1, 1, 9, 45, 0)],
-            ],
-            "HK.HHImain": [
-                [datetime(1970, 1, 1, 10, 0, 0),
-                 datetime(1970, 1, 1, 12, 0, 0)],
-                [datetime(1970, 1, 1, 13, 0, 0),
-                 datetime(1970, 1, 1, 16, 30, 0)],
-                [datetime(1970, 1, 1, 17, 15, 0),
-                 datetime(1970, 1, 1, 3, 0, 0)],
-                [datetime(1970, 1, 1, 9, 15, 0),
-                 datetime(1970, 1, 1, 9, 45, 0)],
-            ],
         },
     )
 
@@ -174,7 +141,7 @@ def run_strategy(**kwargs):
     strategy_account = "PairStrategy"
     strategy_version = "1.0"
     init_position = Position()
-    init_capital = 1000000 * len(security_pairs)
+    init_capital = params["capital_per_entry"] * len(security_pairs)
 
     strategy = PairsStrategy(
         securities={gateway_name: stock_list},
@@ -188,34 +155,6 @@ def run_strategy(**kwargs):
             "LTC.USD": trading_sessions,
             "TRX.USD": trading_sessions,
             "XRP.USD": trading_sessions,
-            "FUT.GC": [
-                [datetime(1970, 1, 1, 10, 0, 0), datetime(1970, 1, 1, 5, 0, 0)],
-                [datetime(1970, 1, 1, 7, 0, 0),
-                 datetime(1970, 1, 1, 9, 45, 0)]],
-            "FUT.SI": [
-                [datetime(1970, 1, 1, 10, 0, 0), datetime(1970, 1, 1, 5, 0, 0)],
-                [datetime(1970, 1, 1, 7, 0, 0),
-                 datetime(1970, 1, 1, 9, 45, 0)]],
-            "HK.MHImain": [
-                [datetime(1970, 1, 1, 10, 0, 0),
-                 datetime(1970, 1, 1, 12, 0, 0)],
-                [datetime(1970, 1, 1, 13, 0, 0),
-                 datetime(1970, 1, 1, 16, 30, 0)],
-                [datetime(1970, 1, 1, 17, 15, 0),
-                 datetime(1970, 1, 1, 3, 0, 0)],
-                [datetime(1970, 1, 1, 9, 15, 0),
-                 datetime(1970, 1, 1, 9, 45, 0)],
-            ],
-            "HK.HHImain": [
-                [datetime(1970, 1, 1, 10, 0, 0),
-                 datetime(1970, 1, 1, 12, 0, 0)],
-                [datetime(1970, 1, 1, 13, 0, 0),
-                 datetime(1970, 1, 1, 16, 30, 0)],
-                [datetime(1970, 1, 1, 17, 15, 0),
-                 datetime(1970, 1, 1, 3, 0, 0)],
-                [datetime(1970, 1, 1, 9, 15, 0),
-                 datetime(1970, 1, 1, 9, 45, 0)],
-            ],
         },
         init_strategy_cash={gateway_name: init_capital},
         init_strategy_position={gateway_name: init_position},
@@ -269,17 +208,16 @@ if __name__ == "__main__":
         ('LTC.USD', 'XRP.USD'),
         ('TRX.USD', 'XRP.USD')
     ]
-    # security_pairs_lst = [
-    #     ('FUT.GC', 'FUT.SI'),
-    # ]
-    # security_pairs_lst = [
-    #     ('HK.MHImain', 'HK.HHImain'),
-    # ]
 
-    start = datetime(2021, 1, 1, 0, 0, 0)
-    end = datetime(2022, 1, 1, 0, 0, 0)
-    # start = datetime(2021, 1, 1)
-    # end = datetime(2021, 7, 1)
+    if params["load_params"] == 1:
+        # Testing period
+        start = datetime(2022, 1, 1, 0, 0, 0)
+        end = datetime(2022, 8, 1, 0, 0, 0)
+    else:
+        # Training period
+        start = datetime(2021, 1, 1, 0, 0, 0)
+        end = datetime(2022, 1, 1, 0, 0, 0)
+
     df = run_strategy(
         security_pairs=security_pairs_lst,
         start=start,

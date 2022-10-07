@@ -27,7 +27,7 @@ from hyperopt import tpe
 from hyperopt import Trials
 from hyperopt import STATUS_OK
 
-from main_pairs import run_strategy
+from strategies.pairs_strategy.main_pairs_crypto import run_strategy
 # from pandas_pairs import run_strategy
 from qtrader.plugins.analysis.metrics import sharpe_ratio, rolling_maximum_drawdown
 from qtrader.core.utility import timeit

@@ -61,7 +61,7 @@ def objective(args, **kwargs):
         tot_r = df_daily["portfolio_value"].iloc[-1] / df["portfolio_value"].iloc[0] - 1.0
         mdd = rolling_maximum_drawdown(
             portfolio_value=df_daily["portfolio_value"].to_numpy(),
-            window=365
+            window=256
         ).iloc[-1]
         if mdd == 0:
             RoMaD = -np.Inf
@@ -126,7 +126,7 @@ def worker(
     return opt_params
 
 # define a search space
-ma_short_length_choice = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140]
+ma_short_length_choice = [10, 20, 30, 40, 50, 60, 70, 80, 90]
 space = hp.choice('a', [
       ('case 1',
        hp.uniform('recalibration_lookback_ratio', 0.02, 0.25),
@@ -169,10 +169,10 @@ security_pairs_lst = [
 if __name__ == "__main__":
 
     dates = [
-        (datetime(2021, 4, 1), datetime(2022, 1, 1)),
-        (datetime(2021, 6, 1), datetime(2022, 3, 1)),
-        (datetime(2021, 8, 1), datetime(2022, 5, 1)),
-        (datetime(2021, 10, 1), datetime(2022, 7, 1)),
+        (datetime(2021, 3, 1), datetime(2022, 3, 1)),
+        (datetime(2021, 5, 1), datetime(2022, 5, 1)),
+        (datetime(2021, 7, 1), datetime(2022, 7, 1)),
+        (datetime(2021, 9, 1), datetime(2022, 9, 1)),
     ]
 
     manager = multiprocessing.Manager()

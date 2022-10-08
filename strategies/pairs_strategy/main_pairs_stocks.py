@@ -174,12 +174,12 @@ if __name__ == "__main__":
 
     if params["load_params"] == 1:
         # Testing period
-        start = datetime(2022, 1, 1, 0, 0, 0)
-        end = datetime(2022, 8, 1, 0, 0, 0)
+        start = datetime(2022, 3, 1, 0, 0, 0)
+        end = datetime(2022, 10, 1, 0, 0, 0)
     else:
         # Training period
-        start = datetime(2021, 4, 1, 0, 0, 0)
-        end = datetime(2022, 1, 1, 0, 0, 0)
+        start = datetime(2021, 3, 1, 0, 0, 0)
+        end = datetime(2022, 3, 1, 0, 0, 0)
     df = run_strategy(
         start=start,
         end=end

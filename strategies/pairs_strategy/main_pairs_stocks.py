@@ -75,26 +75,44 @@ def run_strategy(**kwargs):
 
     stock_list = [
         Stock(code='HK.00175', lot_size=1000, security_name='吉利汽车'),
-        Stock(code='HK.00305', lot_size=10000, security_name='五菱汽车'),
-        Stock(code='HK.00489', lot_size=2000, security_name='东风集团股份'),
+        # Stock(code='HK.00305', lot_size=10000, security_name='五菱汽车'),
+        # Stock(code='HK.00489', lot_size=2000, security_name='东风集团股份'),
         # Stock(code='HK.00708', lot_size=500, security_name='恒大汽车'),
         # Stock(code='HK.01114', lot_size=2000, security_name='华晨中国'),
-        Stock(code='HK.01122', lot_size=2000, security_name='庆铃汽车股份'),
+        # Stock(code='HK.01122', lot_size=2000, security_name='庆铃汽车股份'),
         Stock(code='HK.01211', lot_size=500, security_name='比亚迪股份'),
-        Stock(code='HK.01958', lot_size=500, security_name='北京汽车'),
-        # Stock(code='HK.02015', lot_size=100, security_name='理想汽车-W'),
-        Stock(code='HK.02238', lot_size=2000, security_name='广汽集团'),
+        # Stock(code='HK.01958', lot_size=500, security_name='北京汽车'),
+        Stock(code='HK.02015', lot_size=100, security_name='理想汽车-W'),
+        # Stock(code='HK.02238', lot_size=2000, security_name='广汽集团'),
         Stock(code='HK.02333', lot_size=500, security_name='长城汽车'),
         # Stock(code='HK.09863', lot_size=100, security_name='零跑汽车'),
         # Stock(code='HK.09866', lot_size=10, security_name='蔚来-SW'),
-        # Stock(code='HK.09868', lot_size=100, security_name='小鹏汽车-W'),
+        Stock(code='HK.09868', lot_size=100, security_name='小鹏汽车-W'),
 
-        # Stock(code='HK.00005', lot_size=400, security_name='汇丰控股'),
-        # Stock(code='HK.00011', lot_size=100, security_name='恒生银行'),
-        # Stock(code='HK.00023', lot_size=200, security_name='东亚银行'),
-        # Stock(code='HK.02356', lot_size=400, security_name='大新银行集团'),
-        # Stock(code='HK.02388', lot_size=500, security_name='中银香港'),
-        # Stock(code='HK.02888', lot_size=50, security_name='渣打集团')
+        Stock(code='HK.00005', lot_size=400, security_name='汇丰控股'),
+        Stock(code='HK.00011', lot_size=100, security_name='恒生银行'),
+        Stock(code='HK.00023', lot_size=200, security_name='东亚银行'),
+        Stock(code='HK.02356', lot_size=400, security_name='大新银行集团'),
+        Stock(code='HK.02388', lot_size=500, security_name='中银香港'),
+        Stock(code='HK.02888', lot_size=50, security_name='渣打集团'),
+
+        Stock(code='HK.00002', lot_size=500, security_name='中电控股'),
+        Stock(code='HK.00003', lot_size=1000, security_name='香港中华煤气'),
+        Stock(code='HK.00006', lot_size=500, security_name='电能实业'),
+        Stock(code='HK.02638', lot_size=500, security_name='港灯-SS'),
+
+        Stock(code='HK.00151', lot_size=1000, security_name='中国旺旺'),
+        Stock(code='HK.00220', lot_size=1000, security_name='统一企业中国'),
+        Stock(code='HK.00322', lot_size=2000, security_name='康师傅控股'),
+        Stock(code='HK.00345', lot_size=2000, security_name='维他奶国际'),
+        Stock(code='HK.00359', lot_size=4000, security_name='海升果汁'),
+        # Stock(code='HK.00506', lot_size=2000, security_name='中国食品'),
+        # Stock(code='HK.01068', lot_size=1000, security_name='雨润食品'),
+        # Stock(code='HK.01262', lot_size=1000, security_name='蜡笔小新食品'),
+        Stock(code='HK.01458', lot_size=500, security_name='周黑鸭'),
+        # Stock(code='HK.01583', lot_size=1000, security_name='亲亲食品'),
+        # Stock(code='HK.01610', lot_size=1000, security_name='中粮家佳康'),
+        # Stock(code='HK.03799', lot_size=500, security_name='达利食品'),
     ]
 
     security_pairs = kwargs.get("security_pairs")
@@ -180,7 +198,32 @@ if __name__ == "__main__":
         # Training period
         start = datetime(2021, 3, 1, 0, 0, 0)
         end = datetime(2022, 3, 1, 0, 0, 0)
+
+    security_pairs_lst = [
+        ("HK.00175", "HK.02333"),  # 0.8137642713272502
+        ("HK.01211", "HK.02333"),  # 0.7816611481174279
+        # ("HK.02015", "HK.09868"),  # 0.8079207500691254
+
+        ("HK.00005", "HK.00011"),  # 0.7775684884902373
+        ("HK.00005", "HK.02388"),  # 0.9161240451978186
+        ("HK.00005", "HK.02888"),  # 0.7705808445834417
+        ("HK.00011", "HK.02388"),  # 0.8673502112411601
+        ("HK.00023", "HK.02356"),  # 0.8671698240857814
+        ("HK.02388", "HK.02888"),  # 0.8287286660982947
+
+        ("HK.00002", "HK.00006"),  # 0.8945444327870855
+        ("HK.00002", "HK.02638"),  # 0.7734008260269415
+        ("HK.00003", "HK.00006"),  # 0.8322490033475036
+        ("HK.00003", "HK.02638"),  # 0.7563651870959863
+        ("HK.00006", "HK.02638"),  # 0.8739707902621848
+
+        ("HK.00151", "HK.00322"),  # 0.8221427791949019
+        ("HK.00220", "HK.00345"),  # 0.7619037854337202
+        ("HK.00345", "HK.00359"),  # 0.8081776942397184
+        ("HK.00345", "HK.01458"),  # 0.8388968132089987
+    ]
     df = run_strategy(
+        security_pairs=security_pairs_lst,
         start=start,
         end=end
     )

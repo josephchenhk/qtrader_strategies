@@ -58,6 +58,7 @@ def objective(args, **kwargs):
                 / df_daily["portfolio_value"].iloc[0]).dropna(),
             days=256
         )
+        sr = -np.Inf if np.isnan(sr) else sr
         tot_r = df_daily["portfolio_value"].iloc[-1] / df["portfolio_value"].iloc[0] - 1.0
         mdd = rolling_maximum_drawdown(
             portfolio_value=df_daily["portfolio_value"].to_numpy(),
@@ -68,7 +69,7 @@ def objective(args, **kwargs):
         else:
             RoMaD = -tot_r / mdd
         return {
-            'loss': -sr,
+            'loss': -min(max(sr, 0), 1.0) * tot_r,
             'status': STATUS_OK,
             'sharpe_ratio': sr,
             'total_return': tot_r,
@@ -126,10 +127,10 @@ def worker(
     return opt_params
 
 # define a search space
-ma_short_length_choice = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150]
+ma_short_length_choice = [10, 20, 30, 40, 50, 60, 70, 80, 90]
 space = hp.choice('a', [
       ('case 1',
-       hp.uniform('recalibration_lookback_ratio', 0.01, 0.30),
+       hp.uniform('recalibration_lookback_ratio', 0.05, 0.30),
        hp.choice('ma_short_length', ma_short_length_choice),
        )]
 )

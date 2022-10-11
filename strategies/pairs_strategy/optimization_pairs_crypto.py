@@ -32,6 +32,7 @@ from strategies.pairs_strategy.main_pairs_crypto import run_strategy
 from qtrader.plugins.analysis.metrics import sharpe_ratio, rolling_maximum_drawdown
 from qtrader.core.utility import timeit
 
+SEED = 2022
 
 # define an objective function
 def objective(args, **kwargs):
@@ -91,7 +92,8 @@ def worker(
         space,
         algo=tpe.suggest,
         max_evals=40,
-        trials=trials
+        trials=trials,
+        rstate=np.random.default_rng(SEED)
     )
     opt_params = {}
     for security_pair in security_pairs:
@@ -127,21 +129,10 @@ space = hp.choice('a', [
 
 # minimize the objective over the space
 security_pairs_lst = [
-    ('BTC.USD', 'EOS.USD'),
-    ('BTC.USD', 'ETH.USD'),
-    ('BTC.USD', 'LTC.USD'),
-    ('BTC.USD', 'TRX.USD'),
-    ('BTC.USD', 'XRP.USD'),
-    ('EOS.USD', 'ETH.USD'),
-    ('EOS.USD', 'LTC.USD'),
-    ('EOS.USD', 'TRX.USD'),
-    ('EOS.USD', 'XRP.USD'),
-    ('ETH.USD', 'LTC.USD'),
-    ('ETH.USD', 'TRX.USD'),
-    ('ETH.USD', 'XRP.USD'),
-    ('LTC.USD', 'TRX.USD'),
-    ('LTC.USD', 'XRP.USD'),
-    ('TRX.USD', 'XRP.USD')
+    ("EOS.USD", "LTC.USD"),  # 0.7968610662268301
+    ("ETH.USD", "TRX.USD"),  # 0.819769004085257
+    ("ETH.USD", "XRP.USD"),  # 0.8416744722298698
+    ("TRX.USD", "XRP.USD"),  # 0.9535877879201461
 ]
 
 if __name__ == "__main__":

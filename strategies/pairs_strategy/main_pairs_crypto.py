@@ -73,11 +73,11 @@ def run_strategy(**kwargs):
         end = datetime(2022, 2, 1, 0, 0, 0)
 
     stock_list = [
-        # Currency(
-        #     code="BTC.USD",
-        #     lot_size=1,
-        #     security_name="BTC.USD",
-        #     exchange=Exchange.SMART),
+        Currency(
+            code="BTC.USD",
+            lot_size=1,
+            security_name="BTC.USD",
+            exchange=Exchange.SMART),
         Currency(
             code="EOS.USD",
             lot_size=1,

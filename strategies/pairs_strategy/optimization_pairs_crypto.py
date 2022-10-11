@@ -27,10 +27,11 @@ from hyperopt import tpe
 from hyperopt import Trials
 from hyperopt import STATUS_OK
 
-from strategies.pairs_strategy.main_pairs_crypto import run_strategy
-# from pandas_pairs import run_strategy
 from qtrader.plugins.analysis.metrics import sharpe_ratio, rolling_maximum_drawdown
 from qtrader.core.utility import timeit
+
+from main_pairs_crypto import run_strategy
+# from pandas_pairs import run_strategy
 
 SEED = 2022
 
@@ -107,12 +108,19 @@ def worker(
             'return_over_maximum_drawdown': trials.best_trial['result'][
                 'return_over_maximum_drawdown'],
         }
-    print(opt_params)
-    # Save to pkl file
+
     start_str = start.strftime("%Y%m%d")
     end_str = end.strftime("%Y%m%d")
+    # Save to pkl file
     with open(
-            f"strategies/pairs_strategy/opt_params/opt_params_{start_str}_{end_str}.pkl",
+            f"opt_params/opt_params_trials_{start_str}_{end_str}.pkl",
+            "wb") as f:
+        pickle.dump(trials.trials, f)
+    print(f"Optimization trials for {start_str}-{end_str} is done.")
+
+    # Save to pkl file
+    with open(
+            f"opt_params/opt_params_{start_str}_{end_str}.pkl",
             "wb") as f:
         pickle.dump(opt_params, f)
     print(f"Optimization for {start_str}-{end_str} is done.")
@@ -129,7 +137,10 @@ space = hp.choice('a', [
 
 # minimize the objective over the space
 security_pairs_lst = [
+    ("BTC.USD", "LTC.USD"),  # 0.7410557870708834
     ("EOS.USD", "LTC.USD"),  # 0.7968610662268301
+    ("EOS.USD", "TRX.USD"),  # 0.7397461563710355
+    ("EOS.USD", "XRP.USD"),  # 0.7456244422109919
     ("ETH.USD", "TRX.USD"),  # 0.819769004085257
     ("ETH.USD", "XRP.USD"),  # 0.8416744722298698
     ("TRX.USD", "XRP.USD"),  # 0.9535877879201461
@@ -138,27 +149,6 @@ security_pairs_lst = [
 if __name__ == "__main__":
 
     dates = [
-        # (datetime(2020, 7, 1), datetime(2021, 1, 1)),
-        # (datetime(2020, 8, 1), datetime(2021, 2, 1)),
-        # (datetime(2020, 9, 1), datetime(2021, 3, 1)),
-        # (datetime(2020, 10, 1), datetime(2021, 4, 1)),
-        # (datetime(2020, 11, 1), datetime(2021, 5, 1)),
-        # (datetime(2020, 12, 1), datetime(2021, 6, 1)),
-        # (datetime(2021, 1, 1), datetime(2021, 7, 1)),
-        # (datetime(2021, 2, 1), datetime(2021, 8, 1)),
-        # (datetime(2021, 3, 1), datetime(2021, 9, 1)),
-        # (datetime(2021, 4, 1), datetime(2021, 10, 1)),
-        # (datetime(2021, 5, 1), datetime(2021, 11, 1)),
-        # (datetime(2021, 6, 1), datetime(2021, 12, 1)),
-        # (datetime(2021, 7, 1), datetime(2022, 1, 1)),
-        # (datetime(2021, 8, 1), datetime(2022, 2, 1)),
-        # (datetime(2021, 9, 1), datetime(2022, 3, 1)),
-        # (datetime(2021, 10, 1), datetime(2022, 4, 1)),
-        # (datetime(2021, 11, 1), datetime(2022, 5, 1)),
-        # (datetime(2021, 12, 1), datetime(2022, 6, 1)),
-        # (datetime(2022, 1, 1), datetime(2022, 7, 1)),
-        # (datetime(2022, 2, 1), datetime(2022, 8, 1)),
-
         (datetime(2021, 1, 1), datetime(2022, 1, 1)),
         (datetime(2021, 3, 1), datetime(2022, 3, 1)),
         (datetime(2021, 5, 1), datetime(2022, 5, 1)),

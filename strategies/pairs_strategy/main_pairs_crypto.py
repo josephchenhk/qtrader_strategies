@@ -49,7 +49,7 @@ from qtrader.core.event_engine import BarEventEngineRecorder, BarEventEngine
 from qtrader.core.constants import TradeMode, Exchange
 from qtrader.gateways import BacktestGateway
 from qtrader.gateways.backtest import BacktestFees
-from strategies.pairs_strategy import PairsStrategy
+from pairs_strategy_v2 import PairsStrategy
 
 with open("params.json", "r") as f:
     params = json.load(f)

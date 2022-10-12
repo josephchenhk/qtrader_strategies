@@ -1,6 +1,6 @@
 {
-  "lookback_period": 2000,
-  "recalibration_lookback_ratio": 0.2276,
+  "lookback_period": 750,
+  "recalibration_lookback_ratio": null,
   "corr_init_threshold": 0.85,
   "corr_maintain_threshold": 0.65,
   "coint_pvalue_init_threshold": 0.01,
@@ -9,7 +9,7 @@
   "exit_threshold_pct": 0.99,
   "max_number_of_entry": 1,
   "capital_per_entry": 1000000,
-  "ma_short_length": 1,
-  "ma_long_length": 100,
+  "ma_short_length": null,
+  "ma_long_length": 30,
   "load_params": 0
 }

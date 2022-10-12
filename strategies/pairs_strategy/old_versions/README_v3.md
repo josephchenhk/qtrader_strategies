@@ -1,8 +1,8 @@
-# Pairs Strategy
+# Demo Strategy
 
 ---
 author: Joseph Chen\
-date: Oct 13rd, 2022
+date: Oct 7th, 2022
 ---
 
 This demo will show how to build a practical strateqy 
@@ -510,15 +510,3 @@ orders to approximate the bid-ask spread since
   contrarian trading strategies might be unknowingly
   buying for bid prices and vice versa.
   
-## References
-
-[1]. [High Frequency and Dynamic Pairs Trading Based on 
-Statistical Arbitrage Using a Two-Stage Correlation and
-Cointegration Approach](https://www.ccsenet.org/journal/index.php/ijef/article/view/33007)
-
-[2]. [Pairs Trading: Optimal Threshold Strategies](https://www.uv.es/bfc/TFM%202018/18.%20Alejandro%20Alvarez.pdf)
-
-[3]. [Enhancing a Pairs Trading strategy with the
-application of Machine Learning](https://www.sciencedirect.com/science/article/abs/pii/S0957417420303146)
-
-[4]. [Pairs Trading in Cryptocurrency Markets](https://www.researchgate.net/publication/346845365_Pairs_Trading_in_Cryptocurrency_Markets)

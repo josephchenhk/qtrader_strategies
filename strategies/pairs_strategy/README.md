@@ -83,7 +83,7 @@ the spread will mean-revert to its historical mean.
    
 2. Once a candidate pair is determined by the two-step
 method, it is valid throughout the next testing period, 
-   and the hedge ratio will also remain unchanged.
+   and the hedge ratio will also remain constant.
    
 3. The distribution of the spread follows a normal
 distribution, and the distances can be measured by
@@ -108,8 +108,7 @@ $\text{mean}(s) - \delta\cdot\text{std}(s)$,
 security 1 is under-valued, and security 2 is over-valued,
 as a result we open 1 unit of long position for security 1, 
 and $\gamma$ unit of short position for security 2. The 
-parameter $\delta$ here is a threshold number that should
-be measured with simulation data.
+parameter $\delta$ here is a threshold number to open trades.
 
 To control the risk, we also need to apply the stop
 loss rule to the strategy: if we are long security 1, and
@@ -126,7 +125,7 @@ $\text{mean}(s)$, but moves further to be even larger than
 $\text{mean}(s) + \Delta\cdot\text{std}(s)$,
 the position will be closed and a loss will be realized. 
 Similar to $\delta$, the exit threshold $\Delta$ is also 
-a number that needs to be found out with training data.
+a number to be used for closing trades.
 
 Besides the z-score condition, there are
 also other entry conditions: when a pair is on, 
@@ -151,8 +150,7 @@ will be adjusted accordingly.
 
 As discussed in EDA，the trading universe is six cryptocurrency 
 pairs:`BTC.USD`, `EOS.USD`, `ETH.USD`, `LTC.USD`, `TRX.USD`, 
-and`XRP.USD`. Hence there are 15 ( $C^2_6=15$ ) pairs
-for trading:
+and`XRP.USD`. Hence there are 15 ( $C^2_6=15$ ) candidate pairs:
 
 ```html
 ('BTC.USD', 'EOS.USD'),
@@ -172,9 +170,23 @@ for trading:
 ('TRX.USD', 'XRP.USD')
 ```
 
-The OHLCV data of interval 15-min
+We use the training data (from 2021-01-01 to 2021-12-31)
+to calculate the correlation of different pairs in sample,
+and get seven pairs that have a correlation over 0.7:
+
+```html
+corr("BTC.USD", "LTC.USD") = 0.7410557870708834
+corr("EOS.USD", "LTC.USD") = 0.7968610662268301
+corr("EOS.USD", "TRX.USD") = 0.7397461563710355
+corr("EOS.USD", "XRP.USD") = 0.7456244422109919
+corr("ETH.USD", "TRX.USD") = 0.819769004085257
+corr("ETH.USD", "XRP.USD") = 0.8416744722298698
+corr("TRX.USD", "XRP.USD") = 0.9535877879201461
+```
+
+The OHLCV data of interval 15-min/30-min/60-min
 are used for simulations. The look-back 
-window is fixed to be 4000 bars (`lookback_period=4000`). 
+window is fixed to be 2000/1000/750 bars (`lookback_period`). 
 In the training period, we apply a two-step 
 statistical method to the data in lookback window to 
 determine the candidate pairs. Only those pairs with 
@@ -211,8 +223,8 @@ only enter the trade once for repeating signals
 A summary of the strategy parameters is shown below:
 
 ```json
-"lookback_period": 4000,
-"recalibration_lookback_ratio": 0.12,
+"lookback_period": 2000/1000/750,
+"recalibration_lookback_ratio": (to be determined),
 "corr_init_threshold": 0.85,
 "corr_maintain_threshold": 0.65,
 "coint_pvalue_init_threshold": 0.01,
@@ -221,8 +233,8 @@ A summary of the strategy parameters is shown below:
 "exit_threshold_pct": 0.99,
 "max_number_of_entry": 1,
 "capital_per_entry": 1000000,
-"ma_short_length": 50,
-"ma_long_length": 200
+"ma_short_length": (to be determined),
+"ma_long_length": 100/50/30
 ```
 
 ## Optimization Objective Function
@@ -233,158 +245,22 @@ Therefore, the objective
 function is defined as minimizing $f$:
 
 $$
-f(recalibration\textunderscore lookback\textunderscore ratio, 
-ma\textunderscore short\textunderscore length) 
-= -\text{TOTR}/\text{MDD}
+f(entry\textunderscore threshold, exit\textunderscore threshold) 
+= -\min(\max(\text{SR}, 0), 1.0) * \text{TOTR}
 $$
 
-where $\text{MDD}$ is the maximum drawdown, and $\text{TOTR}$ is the total
-return.
+where $\text{SR}$ is the Sharpe ratio, and $\text{TOTR}$ is the total
+return. 
 
-## 5-min Interval
-
-We firstly test the strategy in a 5-min interval. This
-means we have a training window (lookback window) of 
-roughly 14 days 
-($5 * 4000 / (60 * 24) = 13.8$), and a testing window 
-(trading window) that is calculated from
-`recalibration_lookback_ratio`.
+## Stocks
 
 The strategy is tested on both 
-in-sample and out-of-sample datasets.
+in-sample (from 2021-03-01 to 2022-03-01) 
+and out-of-sample (from 2022-03-01 to 2022-10-01) 
+datasets.
 
-### In-sample
-Below is the Backtest result from 2021-01-01 to 2021-12-31: 
+Below is the Backtest results: 
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_5min_in_sample.jpeg "5min_in_sample")
-
-```html
-____________Performance____________
-Start Date: 2021-01-01
-End Date: 2022-01-01
-Number of Trading Days: 365
-Number of Instruments: 15
-Number of Trades: 380
-Total Return: 23.50%
-Annualized Return: 23.50%
-Sharpe Ratio: 1.61
-Rolling Maximum Drawdown: -9.66%
-```
-
-### Out-of_sample
-
-Below is the Backtest result from 2022-01-01 to 2022-07-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_5min_out_of_sample.jpeg "5min_out_of_sample")
-
-```html
-____________Performance____________
-Start Date: 2022-01-01
-End Date: 2022-08-01
-Number of Trading Days: 212
-Number of Instruments: 15
-Number of Trades: 303
-Total Return: 0.37%
-Annualized Return: 0.65%
-Sharpe Ratio: 0.05
-Rolling Maximum Drawdown: -5.88%
-```
-
-## 15-min Interval
-
-We then test the strategy in a 15-min interval. This
-means we have a training window (lookback window) of 
-roughly 42 days 
-($15 * 4000 / (60 * 24) = 41.6$), and a testing window 
-(trading window) that is calculated from
-`recalibration_lookback_ratio`.
-
-The strategy is tested on both 
-in-sample and out-of-sample datasets.
-
-### In-sample
-Below is the Backtest result from 2021-01-01 to 2021-12-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_15min_in_sample.jpeg "15min_in_sample")
-
-```html
-____________Performance____________
-Start Date: 2021-01-01
-End Date: 2022-01-01
-Number of Trading Days: 365
-Number of Instruments: 15
-Number of Trades: 134
-Total Return: 44.34%
-Annualized Return: 44.34%
-Sharpe Ratio: 2.97
-Rolling Maximum Drawdown: -4.02%
-```
-
-### Out-of_sample
-
-Below is the Backtest result from 2022-01-01 to 2022-07-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_15min_out_of_sample.jpeg "15min_out_of_sample")
-
-```html
-____________Performance____________
-Start Date: 2022-01-01
-End Date: 2022-08-01
-Number of Trading Days: 212
-Number of Instruments: 15
-Number of Trades: 83
-Total Return: 11.25%
-Annualized Return: 19.37%
-Sharpe Ratio: 1.76
-Rolling Maximum Drawdown: -5.06%
-```
-
-## 60-min Interval
-
-We then test the strategy in a 60-min interval. This
-means we have a training window (lookback window) of 
-roughly 167 days 
-($60 * 4000 / (60 * 24) = 166.7$), and a testing window 
-(trading window) that is calculated from
-`recalibration_lookback_ratio`.
-
-The strategy is tested on both 
-in-sample and out-of-sample datasets.
-
-### In-sample
-Below is the Backtest result from 2021-01-01 to 2021-12-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_60min_in_sample.jpeg "15min_in_sample")
-
-```html
-____________Performance____________
-Start Date: 2021-01-01
-End Date: 2022-01-01
-Number of Trading Days: 365
-Number of Instruments: 15
-Number of Trades: 28
-Total Return: 12.67%
-Annualized Return: 12.67%
-Sharpe Ratio: 0.88
-Rolling Maximum Drawdown: -8.56%
-```
-
-### Out-of_sample
-
-Below is the Backtest result from 2022-01-01 to 2022-07-31: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_60min_out_of_sample.jpeg "15min_out_of_sample")
-
-```html
-____________Performance____________
-Start Date: 2022-01-01
-End Date: 2022-08-01
-Number of Trading Days: 212
-Number of Instruments: 15
-Number of Trades: 32
-Total Return: 5.39%
-Annualized Return: 9.29%
-Sharpe Ratio: 0.75
-Rolling Maximum Drawdown: -7.62%
-```
-
-## Summary & Future Work
-
-A comparison with the previous version:
 
 <table>
     <thead>
@@ -393,7 +269,7 @@ A comparison with the previous version:
             <th colspan=2>Annualized Return</th>
             <th colspan=2>Sharpe Ratio</th>
             <th colspan=2>Maximum Drawdown</th>
-            <th colspan=2>Number of Trades</th>
+            <th colspan=2>Number of Days/Number of Trades</th>
         </tr>
         <tr>
             <th>In-sample</th>
@@ -408,73 +284,44 @@ A comparison with the previous version:
     </thead>
     <tbody>
         <tr>
-            <td >5-min</td>
-            <td>6.38%</td>
-            <td>3.14%</td>
-            <td>0.96</td>
-            <td>0.82</td>
-            <td>-5.39%</td>
-            <td>-3.00%</td>
-            <td>168</td>
-            <td>89</td>
-        </tr>
-        <tr>
-            <td style="color:blue;"><b>5-min</b></td>
-            <td style="color:blue;"><b>23.50%</b></td>
-            <td style="color:blue;"><b>0.65%</b></td>
-            <td style="color:blue;"><b>1.61</b></td>
-            <td style="color:blue;"><b>0.05</b></td>
-            <td style="color:blue;"><b>-9.66%</b></td>
-            <td style="color:blue;"><b>-5.88%</b></td>
-            <td style="color:blue;"><b>380</b></td>
-            <td style="color:blue;"><b>303</b></td>
-        </tr>
-        <tr>
-            <td >15-min</td>
-            <td>8.14%</td>
-            <td>-14.59%</td>
-            <td>1.20</td>
-            <td>-1.38</td>
-            <td>-4.92%</td>
-            <td>-11.29%</td>
-            <td>33</td>
-            <td>13</td>
-        </tr>
-        <tr>
             <td style="color:blue;"><b>15-min</b></td>
-            <td style="color:blue;"><b>44.34%</b></td>
-            <td style="color:blue;"><b>19.37%</b></td>
-            <td style="color:blue;"><b>2.97</b></td>
-            <td style="color:blue;"><b>1.76</b></td>
-            <td style="color:blue;"><b>-4.02%</b></td>
-            <td style="color:blue;"><b>-5.06%</b></td>
-            <td style="color:blue;"><b>134</b></td>
-            <td style="color:blue;"><b>83</b></td>
+            <td style="color:blue;"><b>15.50%</b></td>
+            <td style="color:blue;"><b>19.14%</b></td>
+            <td style="color:blue;"><b>5.28</b></td>
+            <td style="color:blue;"><b>8.45</b></td>
+            <td style="color:blue;"><b>-2.17%</b></td>
+            <td style="color:blue;"><b>-1.13%</b></td>
+            <td style="color:blue;"><b>364/584</b></td>
+            <td style="color:blue;"><b>213/235</b></td>
         </tr>
         <tr>
-            <td >60-min</td>
-            <td>16.77%</td>
-            <td>13.28%</td>
-            <td>1.30</td>
-            <td>1.15</td>
-            <td>-4.4%</td>
-            <td>-4.58%</td>
-            <td>1</td>
-            <td>1</td>
+            <td style="color:blue;"><b>30-min</b></td>
+            <td style="color:blue;"><b>11.94%</b></td>
+            <td style="color:blue;"><b>12.55%</b></td>
+            <td style="color:blue;"><b>4.96</b></td>
+            <td style="color:blue;"><b>7.19</b></td>
+            <td style="color:blue;"><b>-1.79%</b></td>
+            <td style="color:blue;"><b>-0.93%</b></td>
+            <td style="color:blue;"><b>364/449</b></td>
+            <td style="color:blue;"><b>213/176</b></td>
         </tr>
         <tr>
             <td style="color:blue;"><b>60-min</b></td>
-            <td style="color:blue;"><b>12.67%</b></td>
-            <td style="color:blue;"><b>9.29%</b></td>
-            <td style="color:blue;"><b>0.88</b></td>
-            <td style="color:blue;"><b>0.75</b></td>
-            <td style="color:blue;"><b>-8.56%</b></td>
-            <td style="color:blue;"><b>-7.62%</b></td>
-            <td style="color:blue;"><b>28</b></td>
-            <td style="color:blue;"><b>32</b></td>
+            <td style="color:blue;"><b>5.53%</b></td>
+            <td style="color:blue;"><b>9.75%</b></td>
+            <td style="color:blue;"><b>2.13</b></td>
+            <td style="color:blue;"><b>4.16</b></td>
+            <td style="color:blue;"><b>-1.74%</b></td>
+            <td style="color:blue;"><b>-0.96%</b></td>
+            <td style="color:blue;"><b>364/291</b></td>
+            <td style="color:blue;"><b>213/106</b></td>
         </tr>
     </tbody>
 </table>
+
+## Summary & Future Work
+
+A comparison with the previous version:
 
 There is a lot of work to be done to improve the strategy, which is 
 included but not limited to:

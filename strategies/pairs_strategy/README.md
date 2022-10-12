@@ -260,7 +260,7 @@ and out-of-sample (from 2022-03-01 to 2022-10-01)
 datasets.
 
 Below is the Backtest results: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/v1_5min_in_sample.jpeg "5min_in_sample")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/dev-price-with-lot/strategies/pairs_strategy/contents/stocks.png "backtest_stocks")
 
 <table>
     <thead>

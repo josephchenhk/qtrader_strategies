@@ -92,7 +92,7 @@ def worker(
                 end=end),
         space,
         algo=tpe.suggest,
-        max_evals=40,
+        max_evals=25,
         trials=trials,
         rstate=np.random.default_rng(SEED)
     )
@@ -127,7 +127,7 @@ def worker(
     return opt_params
 
 # define a search space
-ma_short_length_choice = [10, 20, 30, 40, 50, 60, 70, 80, 90]
+ma_short_length_choice = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 space = hp.choice('a', [
       ('case 1',
        hp.uniform('recalibration_lookback_ratio', 0.05, 0.30),

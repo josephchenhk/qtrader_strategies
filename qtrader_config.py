@@ -30,8 +30,8 @@ TIME_STEP = 15 * 60 * 1000  # time step in milliseconds
 
 DATA_PATH = {
     # "kline": "/Users/joseph/Dropbox/code/demo_strategy/clean_data/k_line",
-    # "kline": "/Users/joseph/Dropbox/code/data/data/k_line",
-    "kline": "C:/Users/josephchenj/Quant/demo_strategy/clean_data/k_line",
+    "kline": "/Users/joseph/Dropbox/code/data/data/k_line",
+    # "kline": "C:/Users/josephchenj/Quant/demo_strategy/clean_data/k_line",
 }
 
 DATA_MODEL = {

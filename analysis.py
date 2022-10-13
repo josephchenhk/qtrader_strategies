@@ -46,7 +46,7 @@ instruments = {
 #     number_instruments = len(opt_params)
 
 
-result_df = pd.read_csv("strategies/pairs_strategy/saved_results/30min_stocks/in_sample/result_pairs.csv")
+result_df = pd.read_csv("strategies/pairs_strategy/saved_results/30min_crypto/out_of_sample/result_pairs.csv")
 
 # # Plot normalized prices
 # closes_df = pd.DataFrame(

@@ -148,42 +148,6 @@ will be adjusted accordingly.
 
 # Simulation Results
 
-As discussed in EDA，the trading universe is six cryptocurrency 
-pairs:`BTC.USD`, `EOS.USD`, `ETH.USD`, `LTC.USD`, `TRX.USD`, 
-and`XRP.USD`. Hence there are 15 ( $C^2_6=15$ ) candidate pairs:
-
-```html
-('BTC.USD', 'EOS.USD'),
-('BTC.USD', 'ETH.USD'),
-('BTC.USD', 'LTC.USD'),
-('BTC.USD', 'TRX.USD'),
-('BTC.USD', 'XRP.USD'),
-('EOS.USD', 'ETH.USD'),
-('EOS.USD', 'LTC.USD'),
-('EOS.USD', 'TRX.USD'),
-('EOS.USD', 'XRP.USD'),
-('ETH.USD', 'LTC.USD'),
-('ETH.USD', 'TRX.USD'),
-('ETH.USD', 'XRP.USD'),
-('LTC.USD', 'TRX.USD'),
-('LTC.USD', 'XRP.USD'),
-('TRX.USD', 'XRP.USD')
-```
-
-We use the training data (from 2021-01-01 to 2021-12-31)
-to calculate the correlation of different pairs in sample,
-and get seven pairs that have a correlation over 0.7:
-
-```html
-corr("BTC.USD", "LTC.USD") = 0.7410557870708834
-corr("EOS.USD", "LTC.USD") = 0.7968610662268301
-corr("EOS.USD", "TRX.USD") = 0.7397461563710355
-corr("EOS.USD", "XRP.USD") = 0.7456244422109919
-corr("ETH.USD", "TRX.USD") = 0.819769004085257
-corr("ETH.USD", "XRP.USD") = 0.8416744722298698
-corr("TRX.USD", "XRP.USD") = 0.9535877879201461
-```
-
 The OHLCV data of interval 15-min/30-min/60-min
 are used for simulations. The look-back 
 window is fixed to be 2000/1000/750 bars (`lookback_period`). 
@@ -223,7 +187,7 @@ only enter the trade once for repeating signals
 A summary of the strategy parameters is shown below:
 
 ```json
-"lookback_period": 2000/1000/750,
+"lookback_period": [2000, 1000, 750],
 "recalibration_lookback_ratio": (to be determined),
 "corr_init_threshold": 0.85,
 "corr_maintain_threshold": 0.65,
@@ -234,7 +198,7 @@ A summary of the strategy parameters is shown below:
 "max_number_of_entry": 1,
 "capital_per_entry": 1000000,
 "ma_short_length": (to be determined),
-"ma_long_length": 100/50/30
+"ma_long_length": [100, 50, 30]
 ```
 
 ## Optimization Objective Function
@@ -252,7 +216,174 @@ $$
 where $\text{SR}$ is the Sharpe ratio, and $\text{TOTR}$ is the total
 return. 
 
+## Cryptocurrencies
+
+As discussed in EDA，the trading universe is six cryptocurrency 
+pairs:`BTC.USD`, `EOS.USD`, `ETH.USD`, `LTC.USD`, `TRX.USD`, 
+and`XRP.USD`. Hence there are 15 ( $C^2_6=15$ ) candidate pairs:
+
+```html
+('BTC.USD', 'EOS.USD'),
+('BTC.USD', 'ETH.USD'),
+('BTC.USD', 'LTC.USD'),
+('BTC.USD', 'TRX.USD'),
+('BTC.USD', 'XRP.USD'),
+('EOS.USD', 'ETH.USD'),
+('EOS.USD', 'LTC.USD'),
+('EOS.USD', 'TRX.USD'),
+('EOS.USD', 'XRP.USD'),
+('ETH.USD', 'LTC.USD'),
+('ETH.USD', 'TRX.USD'),
+('ETH.USD', 'XRP.USD'),
+('LTC.USD', 'TRX.USD'),
+('LTC.USD', 'XRP.USD'),
+('TRX.USD', 'XRP.USD')
+```
+
+We use the training data (from 2021-01-01 to 2021-12-31)
+to calculate the correlation of different pairs in sample,
+and get 7 pairs that have a correlation over 0.7, which
+is our trading universe:
+
+```html
+corr("BTC.USD", "LTC.USD") = 0.7410557870708834
+corr("EOS.USD", "LTC.USD") = 0.7968610662268301
+corr("EOS.USD", "TRX.USD") = 0.7397461563710355
+corr("EOS.USD", "XRP.USD") = 0.7456244422109919
+corr("ETH.USD", "TRX.USD") = 0.819769004085257
+corr("ETH.USD", "XRP.USD") = 0.8416744722298698
+corr("TRX.USD", "XRP.USD") = 0.9535877879201461
+```
+
+The strategy is tested on both 
+in-sample (from 2021-01-01 to 2022-01-01) 
+and out-of-sample (from 2022-01-01 to 2022-08-01) 
+datasets.
+
+Below is the Backtest results: 
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/dev-price-with-lot/strategies/pairs_strategy/contents/crypto.png "backtest_crypto")
+
+<table>
+    <thead>
+        <tr>
+            <th rowspan=2>Interval</th>
+            <th colspan=2>Annualized Return</th>
+            <th colspan=2>Sharpe Ratio</th>
+            <th colspan=2>Maximum Drawdown</th>
+            <th colspan=2>Number of Days/Number of Trades</th>
+        </tr>
+        <tr>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="color:blue;"><b>15-min</b></td>
+            <td style="color:blue;"><b>114.40%</b></td>
+            <td style="color:blue;"><b>38.07%</b></td>
+            <td style="color:blue;"><b>5.92</b></td>
+            <td style="color:blue;"><b>2.75</b></td>
+            <td style="color:blue;"><b>-4.00%</b></td>
+            <td style="color:blue;"><b>-6.27%</b></td>
+            <td style="color:blue;"><b>365/2560</b></td>
+            <td style="color:blue;"><b>212/1704</b></td>
+        </tr>
+        <tr>
+            <td style="color:blue;"><b>30-min</b></td>
+            <td style="color:blue;"><b>116.00%</b></td>
+            <td style="color:blue;"><b>44.71%</b></td>
+            <td style="color:blue;"><b>5.91</b></td>
+            <td style="color:blue;"><b>3.05</b></td>
+            <td style="color:blue;"><b>-3.61%</b></td>
+            <td style="color:blue;"><b>-6.25%</b></td>
+            <td style="color:blue;"><b>365/2108</b></td>
+            <td style="color:blue;"><b>212/1473</b></td>
+        </tr>
+        <tr>
+            <td style="color:blue;"><b>60-min</b></td>
+            <td style="color:blue;"><b>5.53%</b></td>
+            <td style="color:blue;"><b>9.75%</b></td>
+            <td style="color:blue;"><b>2.13</b></td>
+            <td style="color:blue;"><b>4.16</b></td>
+            <td style="color:blue;"><b>-1.74%</b></td>
+            <td style="color:blue;"><b>-0.96%</b></td>
+            <td style="color:blue;"><b>364/291</b></td>
+            <td style="color:blue;"><b>213/106</b></td>
+        </tr>
+    </tbody>
+</table>
+
+
 ## Stocks
+
+To check the robustness of the model, we also test it 
+in another asset class: HK equity.
+
+We select stocks from 4 sectors: automobiles, banking,
+utility, and food. We use script `select_pairs.py` to
+select the candidate pairs.
+
+There are 17 securities that are involved:
+
+```html
+# Automobiles
+Stock(code='HK.00175', lot_size=1000, security_name='吉利汽车'),
+Stock(code='HK.02333', lot_size=500, security_name='长城汽车'),
+
+# Banking
+Stock(code='HK.00005', lot_size=400, security_name='汇丰控股'),
+Stock(code='HK.00011', lot_size=100, security_name='恒生银行'),
+Stock(code='HK.00023', lot_size=200, security_name='东亚银行'),
+Stock(code='HK.02356', lot_size=400, security_name='大新银行集团'),
+Stock(code='HK.02388', lot_size=500, security_name='中银香港'),
+Stock(code='HK.02888', lot_size=50, security_name='渣打集团'),
+
+# Utility
+Stock(code='HK.00002', lot_size=500, security_name='中电控股'),
+Stock(code='HK.00003', lot_size=1000, security_name='香港中华煤气'),
+Stock(code='HK.00006', lot_size=500, security_name='电能实业'),
+Stock(code='HK.02638', lot_size=500, security_name='港灯-SS'),
+
+# Food
+Stock(code='HK.00151', lot_size=1000, security_name='中国旺旺'),
+Stock(code='HK.00322', lot_size=2000, security_name='康师傅控股'),
+Stock(code='HK.00345', lot_size=2000, security_name='维他奶国际'),
+Stock(code='HK.00359', lot_size=4000, security_name='海升果汁'),
+Stock(code='HK.01458', lot_size=500, security_name='周黑鸭'),
+```
+
+And 11 pairs formed from the above securities are with a correlation
+over 0.8 in training data(from 2021-03-01 to 2022-03-01). 
+This is our trading universe:
+
+```html
+# Automobiles
+corr("HK.00175", "HK.02333") = 0.8130455424786539
+corr("HK.02015", "HK.09868") = 0.8104253037907465  # this pair will be ignored as there is not enough hist data
+
+# Banking
+corr("HK.00005", "HK.02388") = 0.9102538048030802
+corr("HK.00011", "HK.02388") = 0.8712931344354583
+corr("HK.00023", "HK.02356") = 0.8817014110514532
+corr("HK.02388", "HK.02888") = 0.8204095658616172
+
+# Utility
+corr("HK.00002", "HK.00006") = 0.8943476985909485
+corr("HK.00003", "HK.00006") = 0.845261925751612
+corr("HK.00006", "HK.02638") = 0.8784485296661352
+
+# Food
+corr("HK.00151", "HK.00322") = 0.8010002549765622
+corr("HK.00345", "HK.00359") = 0.8237822886291755
+corr("HK.00345", "HK.01458") = 0.8572304867616597
+```
 
 The strategy is tested on both 
 in-sample (from 2021-03-01 to 2022-03-01) 
@@ -319,9 +450,87 @@ Below is the Backtest results:
     </tbody>
 </table>
 
-## Summary & Future Work
+## Summary
 
-A comparison with the previous version:
+There are a few trials that are worthy of mentioning:
+
+- The two-step method of finding out candidate pairs
+comes from Ref[1]. In Ref[2], the authors used
+  more criteria to select pairs, which include 
+  Hurst exponent and half-life. I have tested all 
+  combinations of these and concluded that only
+  correlation and cointegration are the most 
+  important factors. Adding more criteria has a
+  negative effect on the backtest performance.
+  
+- Both Ref[1] and Ref[2] use fixed parameters to
+determine the thresholds, for example, 
+  $\mu - \delta \sigma$ for long threshold, 
+  $\mu + \delta \sigma$ for short threshold. 
+  At first, 
+  I adopted this idea, and tried to optimize
+  the performance by tuning $\delta$. The results
+  are not good. I also tried separate parameters
+  for long and short: 
+  $\mu - \delta_l \sigma$ for long threshold, and
+  $\mu + \delta_s \sigma$ for short threshold. 
+  And the results is not satisfactory either. 
+  Later, I found this thesis (Ref[3]), which 
+  had a through discussion on optimal threshold
+  selection. Besides fixed threshold, the author
+  also proposed 4 other methods to determine the
+  threshold. For example, the conditional volatility
+  threshold considered the impact of volatility,
+  and the percentile based threshold considered 
+  the asymmetric distribution of the spread, and 
+  spectral analysis threshold considered using
+  a wave-like curve to predict, and neural network
+  threshold considered incorporating the spectral
+  one with machine learning techniques. After
+  some trials, my conclusion is the key to the 
+  success or failure of the Bollinger Band model
+  is the distribution of the spread. If the spread
+  is highly asymmetric and the distribution is 
+  unstable, then this model will not work well.
+  
+- $log(S)$ or $S$? When calculating the spread,
+some papers (e.g. Ref[1], Ref[4]) use prices $S$;
+  some papers (e.g. Ref[2], Ref[5]) use logarithm
+  prices $log(S)$. I tested both. $log(S)$ is
+  much more stable, i.e., the hedge ratio $\gamma$
+  does not fluctuate as much as the one calculated
+  from price spreads. Besides, one should 
+  be cautious as these two lead to different 
+  interpretation of the hedge ratio: spreads
+  from $log(S)$ make $\gamma$ dollar value; 
+  while spreads from $S$ make $\gamma$ the
+  stock shares. 
+  
+- Ordinary least squares or total least squares?
+Simple linear regression (OLS) suffers from the
+  problem of asymmetry: the regression coefficient
+  is not consistent when switching dependent 
+  variables $y$ and independent variable $x$.
+  Therefore some authors proposed total lease
+  squares (Ref[6]) to obtain a symmetric coefficient.
+  My experiment on this implies that this
+  change does not make significant progress to
+  the performance, as long as we have a relatively
+  rigorous selection criteria (i.e., the two-step
+  selection) for the candidate pairs. This can
+  be understood as for highly correlated and 
+  cointegrated pairs, the hedge ratio should 
+  be consistent by nature to some extent.
+  
+- Noise removal: a spread naively calculated
+from the prices will give noisy signals, 
+  especially when we drill down to higher
+  resolution of timeframes. In Ref[7],
+  moving averages are employed to smooth the
+  spread. We adopt this and make the short-term
+  moving average as a parameter in optimization.
+
+## Future Work
 
 There is a lot of work to be done to improve the strategy, which is 
 included but not limited to:
@@ -344,8 +553,8 @@ The code for optimization is in `optimization_pair.py`.~~
 - (4). Consider the actual volume to have a better estimation of 
 executed shares.
   
-- (5). Consider using total least squares intead of OLS
-to obtain the regression coefficients (hedge ratios).
+~~- (5). Consider using total least squares intead of OLS
+to obtain the regression coefficients (hedge ratios).~~
   
 - (6). Consider transaction costs in the simulation.
 
@@ -359,13 +568,19 @@ orders to approximate the bid-ask spread since
   
 ## References
 
-[1]. [High Frequency and Dynamic Pairs Trading Based on 
+[1]: [High Frequency and Dynamic Pairs Trading Based on 
 Statistical Arbitrage Using a Two-Stage Correlation and
 Cointegration Approach](https://www.ccsenet.org/journal/index.php/ijef/article/view/33007)
 
-[2]. [Pairs Trading: Optimal Threshold Strategies](https://www.uv.es/bfc/TFM%202018/18.%20Alejandro%20Alvarez.pdf)
-
-[3]. [Enhancing a Pairs Trading strategy with the
+[2]: [Enhancing a Pairs Trading strategy with the
 application of Machine Learning](https://www.sciencedirect.com/science/article/abs/pii/S0957417420303146)
 
-[4]. [Pairs Trading in Cryptocurrency Markets](https://www.researchgate.net/publication/346845365_Pairs_Trading_in_Cryptocurrency_Markets)
+[3]: [Pairs Trading: Optimal Threshold Strategies](https://www.uv.es/bfc/TFM%202018/18.%20Alejandro%20Alvarez.pdf)
+
+[4]: [Pairs Trading in Cryptocurrency Markets](https://www.researchgate.net/publication/346845365_Pairs_Trading_in_Cryptocurrency_Markets)
+
+[5]: [Pairs Trading Basics: Correlation, Cointegration And Strategy](https://blog.quantinsti.com/pairs-trading-basics/)
+
+[6]: [Practical Pairs Trading](https://robotwealth.com/practical-pairs-trading/)
+
+[7]: [Pairs Trading](https://haohanwang.medium.com/pairs-trading-35a4080b6851)

@@ -192,21 +192,13 @@ def run_strategy(**kwargs):
 
 if __name__ == "__main__":
     security_pairs_lst = [
-        ('BTC.USD', 'EOS.USD'),
-        ('BTC.USD', 'ETH.USD'),
-        ('BTC.USD', 'LTC.USD'),
-        ('BTC.USD', 'TRX.USD'),
-        ('BTC.USD', 'XRP.USD'),
-        ('EOS.USD', 'ETH.USD'),
-        ('EOS.USD', 'LTC.USD'),
-        ('EOS.USD', 'TRX.USD'),
-        ('EOS.USD', 'XRP.USD'),
-        ('ETH.USD', 'LTC.USD'),
-        ('ETH.USD', 'TRX.USD'),
-        ('ETH.USD', 'XRP.USD'),
-        ('LTC.USD', 'TRX.USD'),
-        ('LTC.USD', 'XRP.USD'),
-        ('TRX.USD', 'XRP.USD')
+        ("BTC.USD", "LTC.USD"),  # 0.7410557870708834
+        ("EOS.USD", "LTC.USD"),  # 0.7968610662268301
+        ("EOS.USD", "TRX.USD"),  # 0.7397461563710355
+        ("EOS.USD", "XRP.USD"),  # 0.7456244422109919
+        ("ETH.USD", "TRX.USD"),  # 0.819769004085257
+        ("ETH.USD", "XRP.USD"),  # 0.8416744722298698
+        ("TRX.USD", "XRP.USD"),  # 0.9535877879201461
     ]
 
     if params["load_params"] == 1:

@@ -92,7 +92,7 @@ def worker(
                 end=end),
         space,
         algo=tpe.suggest,
-        max_evals=40,
+        max_evals=25,
         trials=trials,
         rstate=np.random.default_rng(SEED)
     )

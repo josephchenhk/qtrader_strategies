@@ -2,7 +2,7 @@
 
 ---
 author: Joseph Chen\
-date: Oct 13rd, 2022
+date: Oct 14th, 2022
 ---
 
 This demo will show how to build a practical strateqy 
@@ -150,7 +150,8 @@ will be adjusted accordingly.
 
 The OHLCV data of interval 15-min/30-min/60-min
 are used for simulations. The look-back 
-window is fixed to be 2000/1000/750 bars (`lookback_period`). 
+window are fixed to be 2000/1000/750 bars (`lookback_period`)
+respectively. 
 In the training period, we apply a two-step 
 statistical method to the data in lookback window to 
 determine the candidate pairs. Only those pairs with 
@@ -209,7 +210,8 @@ Therefore, the objective
 function is defined as minimizing $f$:
 
 $$
-f(entry\textunderscore threshold, exit\textunderscore threshold) 
+f(recalibration\textunderscore lookback\textunderscore ratio, 
+ma\textunderscore short\textunderscore length) 
 = -\min(\max(\text{SR}, 0), 1.0) * \text{TOTR}
 $$
 
@@ -260,7 +262,7 @@ in-sample (from 2021-01-01 to 2022-01-01)
 and out-of-sample (from 2022-01-01 to 2022-08-01) 
 datasets.
 
-Below is the Backtest results: 
+The Backtest results are shown below: 
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/strategies/pairs_strategy/contents/crypto.png "backtest_crypto")
 
 <table>
@@ -323,11 +325,11 @@ Below is the Backtest results:
 
 ## Stocks
 
-To check the robustness of the model, we also test it 
+To check the robustness of the model, we also tested it 
 in another asset class: HK equity.
 
-We select stocks from 4 sectors: automobiles, banking,
-utility, and food. We use script `select_pairs.py` to
+We selected stocks from 4 sectors: automobiles, banking,
+utility, and food. We used script `select_pairs.py` to
 select the candidate pairs.
 
 There are 17 securities that are involved:
@@ -360,8 +362,8 @@ Stock(code='HK.01458', lot_size=500, security_name='周黑鸭'),
 ```
 
 And 11 pairs formed from the above securities are with a correlation
-over 0.8 in training data(from 2021-03-01 to 2022-03-01). 
-This is our trading universe:
+over 0.8 in training data(from 2021-03-01 to 2022-03-01),
+which form our trading universe:
 
 ```html
 # Automobiles

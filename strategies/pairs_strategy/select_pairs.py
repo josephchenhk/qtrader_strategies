@@ -6,7 +6,7 @@
 
 """
 Copyright (C) 2020 Joseph Chen - All Rights Reserved
-You may use, distribute and modify this code under the 
+You may use, distribute and modify this code under the
 terms of the JXW license, which unfortunately won't be
 written for another century.
 
@@ -139,8 +139,8 @@ corr_df = corr_df.ffill().bfill()
 
 corr_table = corr_df.corr()
 security_codes = set()
-for i in range(corr_table.shape[0]-1):
-    for j in range(i+1, corr_table.shape[0]):
+for i in range(corr_table.shape[0] - 1):
+    for j in range(i + 1, corr_table.shape[0]):
         security_code1 = corr_table.index[i]
         security_code2 = corr_table.columns[j]
         corr = corr_table.iloc[i, j]

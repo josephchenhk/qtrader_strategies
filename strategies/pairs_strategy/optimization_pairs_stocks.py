@@ -6,7 +6,7 @@
 
 """
 Copyright (C) 2020 Joseph Chen - All Rights Reserved
-You may use, distribute and modify this code under the 
+You may use, distribute and modify this code under the
 terms of the JXW license, which unfortunately won't be
 written for another century.
 
@@ -36,6 +36,8 @@ from main_pairs_stocks import run_strategy
 SEED = 2022
 
 # define an objective function
+
+
 def objective(args, **kwargs):
     (case, recalibration_lookback_ratio, ma_short_length) = args
     if case == 'case 1':
@@ -43,12 +45,11 @@ def objective(args, **kwargs):
             security_pairs=kwargs.get("security_pairs"),
             start=kwargs.get("start"),
             end=kwargs.get("end"),
-            override_indicator_cfg=
-            {'params':
-                 {'recalibration_lookback_ratio': recalibration_lookback_ratio,
-                  'ma_short_length': ma_short_length,
-                 }
-             },
+            override_indicator_cfg={
+                'params': {
+                    'recalibration_lookback_ratio': recalibration_lookback_ratio,
+                    'ma_short_length': ma_short_length,
+                }},
         )
         df_daily = df.set_index('datetime').resample('D').agg(
             {"portfolio_value": "last"}).dropna()
@@ -59,7 +60,8 @@ def objective(args, **kwargs):
             days=256
         )
         sr = -np.Inf if np.isnan(sr) else sr
-        tot_r = df_daily["portfolio_value"].iloc[-1] / df["portfolio_value"].iloc[0] - 1.0
+        tot_r = df_daily["portfolio_value"].iloc[-1] / \
+            df["portfolio_value"].iloc[0] - 1.0
         mdd = rolling_maximum_drawdown(
             portfolio_value=df_daily["portfolio_value"].to_numpy(),
             window=256
@@ -126,13 +128,14 @@ def worker(
     print(f"Optimization for {start_str}-{end_str} is done.")
     return opt_params
 
+
 # define a search space
 ma_short_length_choice = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 space = hp.choice('a', [
-      ('case 1',
-       hp.uniform('recalibration_lookback_ratio', 0.05, 0.30),
-       hp.choice('ma_short_length', ma_short_length_choice),
-       )]
+    ('case 1',
+     hp.uniform('recalibration_lookback_ratio', 0.05, 0.30),
+     hp.choice('ma_short_length', ma_short_length_choice),
+     )]
 )
 
 # minimize the objective over the space
@@ -179,4 +182,4 @@ if __name__ == "__main__":
 
     for proc in jobs:
         proc.join()
-    print(f"Optimization is all done.")
+    print("Optimization is all done.")

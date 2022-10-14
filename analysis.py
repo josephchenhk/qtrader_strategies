@@ -6,7 +6,7 @@
 
 """
 Copyright (C) 2020 Joseph Chen - All Rights Reserved
-You may use, distribute and modify this code under the 
+You may use, distribute and modify this code under the
 terms of the JXW license, which unfortunately won't be
 written for another century.
 
@@ -15,8 +15,8 @@ this file. If not, please write to: josephchenhk@gmail.com
 """
 from datetime import datetime
 import ast
-import pickle
-import matplotlib.pyplot as plt
+# import pickle
+# import matplotlib.pyplot as plt
 
 import pandas as pd
 
@@ -46,7 +46,8 @@ instruments = {
 #     number_instruments = len(opt_params)
 
 
-result_df = pd.read_csv("strategies/pairs_strategy/saved_results/60min_crypto/out_of_sample/result_pairs.csv")
+result_df = pd.read_csv(
+    "strategies/pairs_strategy/saved_results/60min_crypto/out_of_sample/result_pairs.csv")
 
 # # Plot normalized prices
 # closes_df = pd.DataFrame(
@@ -80,7 +81,7 @@ perf_df = pd.DataFrame(
     columns=["portfolio_value"]
 )
 perf_df["portfolio_value"] = result_df.strategy_portfolio_value.apply(
-        lambda x: sum(ast.literal_eval(x))).to_list()
+    lambda x: sum(ast.literal_eval(x))).to_list()
 perf_daily_df = perf_df.resample('D').agg({"portfolio_value": "last"})
 sr = sharpe_ratio(
     returns=(perf_daily_df["portfolio_value"].diff()
@@ -88,11 +89,13 @@ sr = sharpe_ratio(
     days=365
 )
 roll_mdd = rolling_maximum_drawdown(perf_daily_df['portfolio_value'])
-number_instruments = 15 # number_instruments
-number_of_trading_days = (perf_daily_df.index[-1] - perf_daily_df.index[0]).days
-num_trades = result_df.action.apply(lambda x: ast.literal_eval(x)[0].count('OPEN')).sum() // 2
+number_instruments = 15  # number_instruments
+number_of_trading_days = (
+    perf_daily_df.index[-1] - perf_daily_df.index[0]).days
+num_trades = result_df.action.apply(lambda x: ast.literal_eval(x)[
+                                    0].count('OPEN')).sum() // 2
 tot_return = (perf_daily_df["portfolio_value"].iloc[-1]
-         / perf_daily_df["portfolio_value"].iloc[0]) - 1
+              / perf_daily_df["portfolio_value"].iloc[0]) - 1
 annualizd_return = tot_return * 365 / number_of_trading_days
 print(
     "____________Performance____________\n"

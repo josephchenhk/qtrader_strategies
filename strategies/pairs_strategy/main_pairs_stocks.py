@@ -19,22 +19,6 @@ this file. If not, please write to: josephchenhk@gmail.com
 #                    Pairs Trading strategy                              #
 ##########################################################################
 
-"""
-{
-  "lookback_period": 2000,
-  "recalibration_lookback_ratio": 0.181,
-  "corr_init_threshold": 0.85,
-  "corr_maintain_threshold": 0.65,
-  "coint_pvalue_init_threshold": 0.01,
-  "coint_pvalue_maintain_threshold": 0.05,
-  "entry_threshold_pct": 0.75,
-  "exit_threshold_pct": 0.99,
-  "max_number_of_entry": 1,
-  "capital_per_entry": 5000000,
-  "ma_short_length": 140,
-  "ma_long_length": 200
-}
-"""
 import json
 import itertools
 from datetime import datetime
@@ -45,13 +29,14 @@ from qtrader.core.position import Position
 from qtrader.core.engine import Engine
 from qtrader.core.security import Stock
 from qtrader.core.event_engine import BarEventEngineRecorder, BarEventEngine
-from qtrader.core.constants import TradeMode, Exchange
+from qtrader.core.constants import TradeMode
 from qtrader.gateways import BacktestGateway
 from qtrader.gateways.backtest import BacktestFees
 from pairs_strategy_v2 import PairsStrategy
 
 with open("params.json", "r") as f:
     params = json.load(f)
+
 
 def run_strategy(**kwargs):
 
@@ -187,6 +172,7 @@ def run_strategy(**kwargs):
         "datetime": [datetime.strptime(d[0], "%Y-%m-%d %H:%M:%S") for d in recorder.datetime],
         "portfolio_value": [p[0] for p in recorder.strategy_portfolio_value]}
     )
+
 
 if __name__ == "__main__":
 

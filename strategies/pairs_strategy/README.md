@@ -261,7 +261,7 @@ and out-of-sample (from 2022-01-01 to 2022-08-01)
 datasets.
 
 Below is the Backtest results: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/dev-price-with-lot/strategies/pairs_strategy/contents/crypto.png "backtest_crypto")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/strategies/pairs_strategy/contents/crypto.png "backtest_crypto")
 
 <table>
     <thead>
@@ -308,14 +308,14 @@ Below is the Backtest results:
         </tr>
         <tr>
             <td style="color:blue;"><b>60-min</b></td>
-            <td style="color:blue;"><b>5.53%</b></td>
-            <td style="color:blue;"><b>9.75%</b></td>
-            <td style="color:blue;"><b>2.13</b></td>
-            <td style="color:blue;"><b>4.16</b></td>
-            <td style="color:blue;"><b>-1.74%</b></td>
-            <td style="color:blue;"><b>-0.96%</b></td>
-            <td style="color:blue;"><b>364/291</b></td>
-            <td style="color:blue;"><b>213/106</b></td>
+            <td style="color:blue;"><b>70.28%</b></td>
+            <td style="color:blue;"><b>42.31%</b></td>
+            <td style="color:blue;"><b>4.02</b></td>
+            <td style="color:blue;"><b>3.45</b></td>
+            <td style="color:blue;"><b>-4.58%</b></td>
+            <td style="color:blue;"><b>-3.40%</b></td>
+            <td style="color:blue;"><b>364/1370</b></td>
+            <td style="color:blue;"><b>212/1050</b></td>
         </tr>
     </tbody>
 </table>
@@ -391,7 +391,7 @@ and out-of-sample (from 2022-03-01 to 2022-10-01)
 datasets.
 
 Below is the Backtest results: 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/dev-price-with-lot/strategies/pairs_strategy/contents/stocks.png "backtest_stocks")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/strategies/pairs_strategy/contents/stocks.png "backtest_stocks")
 
 <table>
     <thead>

@@ -139,4 +139,5 @@ clean_data/*
 strategies/*/log/*
 strategies/*/results/*
 saved_results/*
+strategies/pairs_strategy/old_versions/*
 strategies/pairs_strategy/pairs_strategy_v2.py

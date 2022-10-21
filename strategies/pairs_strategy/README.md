@@ -40,7 +40,7 @@ there is too much noise that could be harmful to
 the profitability and stability of the strategy. Here
 is an example of this calculated spread:
 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/mean_reversion.jpeg "mean_reversion")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/strategies/pairs_strategy/contents/mean_reversion.jpeg "mean_reversion")
 
 The spread could be smoothed with the aid of 
 moving average. We can define the smoothed spread
@@ -56,7 +56,7 @@ The moving average windows are defined in the parameters:
 `ma_short_length` and `ma_long_length`. Below is 
 the smoothed spread from previous data:
 
-![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/contents/mean_reversion_ma.jpeg "mean_reversion_ma")
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/strategies/pairs_strategy/contents/mean_reversion_ma.jpeg "mean_reversion_ma")
 
 A Two-step method will be used to find out the candidate
 pairs. In step 1, for the given lookback window, the 
@@ -448,6 +448,78 @@ Below is the Backtest results:
             <td style="color:blue;"><b>-0.96%</b></td>
             <td style="color:blue;"><b>364/291</b></td>
             <td style="color:blue;"><b>213/106</b></td>
+        </tr>
+    </tbody>
+</table>
+
+## Further Discussion
+
+![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/strategies/pairs_strategy/contents/crypto_comp.png "crypto_comp")
+
+<table>
+    <thead>
+        <tr>
+            <th rowspan=2>Interval</th>
+            <th colspan=2>Annualized Return</th>
+            <th colspan=2>Sharpe Ratio</th>
+            <th colspan=2>Maximum Drawdown</th>
+            <th colspan=2>Number of Days/Number of Trades</th>
+        </tr>
+        <tr>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+            <th>In-sample</th>
+            <th>Out-of-sample</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="color:blue;">15-min (5bps)</td>
+            <td style="color:blue;">114.40%</td>
+            <td style="color:blue;">38.07%</td>
+            <td style="color:blue;">5.92</td>
+            <td style="color:blue;">2.75</td>
+            <td style="color:blue;">-4.00%</td>
+            <td style="color:blue;">-6.27%</td>
+            <td style="color:blue;">365/2560</td>
+            <td style="color:blue;">212/1704</td>
+        </tr>
+        <tr>
+            <td style="color:blue;"><b>15-min (10bps)</b></td>
+            <td style="color:blue;"><b>50.80%</b></td>
+            <td style="color:blue;"><b>-36.13%</b></td>
+            <td style="color:blue;"><b>2.71</b></td>
+            <td style="color:blue;"><b>-2.70</b></td>
+            <td style="color:blue;"><b>-5.17%</b></td>
+            <td style="color:blue;"><b>-29.57%</b></td>
+            <td style="color:blue;"><b>365/2560</b></td>
+            <td style="color:blue;"><b>212/1704</b></td>
+        </tr>
+        <tr>
+            <td style="color:blue;"><b>15-min (5bps;R2)</b></td>
+            <td style="color:blue;"><b>64.59%</b></td>
+            <td style="color:blue;"><b>35.83%</b></td>
+            <td style="color:blue;"><b>5.47</b></td>
+            <td style="color:blue;"><b>3.48</b></td>
+            <td style="color:blue;"><b>-2.30%</b></td>
+            <td style="color:blue;"><b>-4.45%</b></td>
+            <td style="color:blue;"><b>365/1106</b></td>
+            <td style="color:blue;"><b>212/1073</b></td>
+        </tr>
+        <tr>
+            <td style="color:blue;"><b>15-min (10bps;R2)</b></td>
+            <td style="color:blue;"><b>36.59%</b></td>
+            <td style="color:blue;"><b>-11.64%</b></td>
+            <td style="color:blue;"><b>3.27</b></td>
+            <td style="color:blue;"><b>-1.17</b></td>
+            <td style="color:blue;"><b>-3.36%</b></td>
+            <td style="color:blue;"><b>-17.15%</b></td>
+            <td style="color:blue;"><b>365/1106</b></td>
+            <td style="color:blue;"><b>212/1073</b></td>
         </tr>
     </tbody>
 </table>

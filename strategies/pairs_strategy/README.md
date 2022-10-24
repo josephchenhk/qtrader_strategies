@@ -454,6 +454,16 @@ Below is the Backtest results:
 
 ## Further Discussion
 
+In the backtest above, a 5bps transaction cost is included. This should 
+typically be sufficient for mainstream cryptocurrencies and liquid stocks. 
+However, if higher costs, e.g., 10bps, are considered for each trade, then the 
+impact is detrimental: no longer profitable in out-of-sample datasets.
+
+Besides, adding an R2 filter seems to enhance the stability of the strategy: 
+there will be fewer trades over the period and less drawdown. The Sharpe ratios 
+are also OK (5.47 for in-sample, and 3.48 for out-of-sample) in the case of 5bps
+transaction costs.
+
 ![alt text](https://github.com/josephchenhk/demo_strategy/blob/main/strategies/pairs_strategy/contents/crypto_comp.png "crypto_comp")
 
 <table>
@@ -550,7 +560,7 @@ executed shares.
 ~~- (5). Consider using total least squares intead of OLS
 to obtain the regression coefficients (hedge ratios).~~
   
-- (6). Consider transaction costs in the simulation.
+~~- (6). Consider transaction costs in the simulation.~~
 
 ~~- (7). Consider different lookback window and 
 trading window for different time intervals.~~

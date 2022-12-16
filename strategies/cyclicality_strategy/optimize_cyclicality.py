@@ -94,7 +94,7 @@ def rolling_corr(args, **kwargs):
             short_ma_length=short_ma_length,
             long_ma_length=long_ma_length,
             alpha=0.33,
-            lookback_window=10,
+            lookback_window=20,
         )
         PCY.append(pcy)
     data_bt = data.iloc[lookback_window:].copy()

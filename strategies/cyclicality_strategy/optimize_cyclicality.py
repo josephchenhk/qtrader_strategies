@@ -71,7 +71,7 @@ security = Currency(
 data_start = datetime(2020, 11, 15, 0, 0, 0)
 start = datetime(2021, 1, 1, 0, 0, 0)
 end = datetime(2021, 12, 31, 23, 59, 59)
-lookback_window = 100
+lookback_window = 150
 
 # Load data
 data = load_data(security, data_start, start, end, lookback_window)
@@ -81,6 +81,13 @@ def rolling_corr(args, **kwargs):
     case, short_ma_length, long_ma_length = args
     data = kwargs.get("data")
     lookback_window = kwargs.get("lookback_window")
+
+    if short_ma_length >= long_ma_length:
+        return {
+            'loss': float("inf"),
+            'status': STATUS_OK,
+            'rolling_corr': np.nan
+        }
 
     PCY = []
     pcy = 0
@@ -94,25 +101,31 @@ def rolling_corr(args, **kwargs):
             short_ma_length=short_ma_length,
             long_ma_length=long_ma_length,
             alpha=0.33,
-            lookback_window=20,
+            lookback_window=10,
         )
         PCY.append(pcy)
     data_bt = data.iloc[lookback_window:].copy()
     data_bt["PCY"] = PCY
 
+    def turning_points(x):
+        if x[0] > x[1] and x[2] > x[1]:
+            return 1
+        elif x[0] < x[1] and x[2] < x[1]:
+            return -1
+        return 0
+
     data_bt["PCY_interval"] = rolling_apply(
-        lambda PCY: int(
-            (PCY[0] > PCY[1] and PCY[2] > PCY[1])
-            or (PCY[0] < PCY[1] and PCY[2] < PCY[1])
-        ),
+        turning_points,
         3,
         data_bt.PCY.values
     )
-    data_bt = data_bt[data_bt.PCY_interval == 1]
+    data_bt = data_bt[
+        (data_bt.PCY_interval == 1) | (data_bt.PCY_interval == -1)
+    ]
 
-    s1 = data_bt.close.diff().apply(lambda x: int(x>0))
-    s2 = data_bt.PCY.diff().apply(lambda x: int(x>0))
-    rolling_corr = s1.rolling(500).corr(s2).dropna()
+    s1 = data_bt.close.diff().apply(lambda x: int(x > 0))
+    s2 = data_bt.PCY.diff().apply(lambda x: int(x > 0))
+    rolling_corr = s1.rolling(200).corr(s2).dropna()
     return {
         'loss': -rolling_corr.mean(),
         'status': STATUS_OK,
@@ -130,7 +143,7 @@ def worker(
                 lookback_window=lookback_window),
         space,
         algo=tpe.suggest,
-        max_evals=40,
+        max_evals=60,
         trials=trials,
         rstate=np.random.default_rng(SEED)
     )
@@ -143,8 +156,8 @@ def worker(
     return opt_params
 
 # define a search space
-short_ma_length_choice = [10]
-long_ma_length_choice = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80]
+short_ma_length_choice = [10, 15, 20, 25, 30, 35, 40, 45, 50]
+long_ma_length_choice = [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
 space = hp.choice('a', [
     ('case 1',
      hp.choice('short_ma_length', short_ma_length_choice),

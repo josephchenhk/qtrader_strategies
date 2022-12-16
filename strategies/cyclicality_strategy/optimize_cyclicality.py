@@ -99,6 +99,17 @@ def rolling_corr(args, **kwargs):
         PCY.append(pcy)
     data_bt = data.iloc[lookback_window:].copy()
     data_bt["PCY"] = PCY
+
+    data_bt["PCY_interval"] = rolling_apply(
+        lambda PCY: int(
+            (PCY[0] > PCY[1] and PCY[2] > PCY[1])
+            or (PCY[0] < PCY[1] and PCY[2] < PCY[1])
+        ),
+        3,
+        data_bt.PCY.values
+    )
+    data_bt = data_bt[data_bt.PCY_interval == 1]
+
     s1 = data_bt.close.diff().apply(lambda x: int(x>0))
     s2 = data_bt.PCY.diff().apply(lambda x: int(x>0))
     rolling_corr = s1.rolling(500).corr(s2).dropna()
@@ -119,7 +130,7 @@ def worker(
                 lookback_window=lookback_window),
         space,
         algo=tpe.suggest,
-        max_evals=25,
+        max_evals=40,
         trials=trials,
         rstate=np.random.default_rng(SEED)
     )
@@ -132,8 +143,8 @@ def worker(
     return opt_params
 
 # define a search space
-short_ma_length_choice = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-long_ma_length_choice = [15, 20, 30, 40, 50, 60]
+short_ma_length_choice = [10]
+long_ma_length_choice = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80]
 space = hp.choice('a', [
     ('case 1',
      hp.choice('short_ma_length', short_ma_length_choice),

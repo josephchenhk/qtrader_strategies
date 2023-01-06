@@ -28,7 +28,7 @@ from hyperopt import tpe
 from hyperopt import Trials
 from hyperopt import STATUS_OK
 
-from qtrader.core.security import Security, Currency, Futures
+from qtrader.core.security import Security, Currency, Futures, Stock
 from qtrader.core.constants import Exchange
 from qtrader.core.data import _get_data
 from qtrader.core.utility import timeit
@@ -67,109 +67,148 @@ def load_data(
 #     security_name="BTC.USD",
 #     exchange=Exchange.SMART
 # )
-security = Futures(
-    code="HK.HSImain",
-    lot_size=50,
-    security_name="HK.HSImain",
-    exchange=Exchange.HKFE,
-    expiry_date="20221231"
+
+# data_start = datetime(2014, 1, 1, 0, 0, 0)
+# start = datetime(2015, 1, 1, 0, 0, 0)
+# end = datetime(2021, 12, 31, 23, 59, 59)
+# lookback_window = 150
+
+# security = Futures(
+#     code="HK.HSImain",
+#     lot_size=50,
+#     security_name="HK.HSImain",
+#     exchange=Exchange.HKFE,
+#     expiry_date="20221231"
+# )
+
+security = Stock(
+    code="US.SPY",
+    lot_size=1,
+    security_name="US.SPY",
+    exchange=Exchange.SMART
 )
 
-data_start = datetime(2020, 11, 15, 0, 0, 0)
-start = datetime(2021, 1, 1, 0, 0, 0)
-end = datetime(2021, 12, 31, 23, 59, 59)
-lookback_window = 150
+data_start = datetime(2016, 1, 1, 0, 0, 0)
+start = datetime(2018, 1, 1, 0, 0, 0)
+end = datetime(2022, 12, 1, 23, 59, 59)
+data_lookback_window = 110
 
 # Load data
-data = load_data(security, data_start, start, end, lookback_window)
+data = load_data(security, data_start, start, end, data_lookback_window)
 
 def rolling_corr(args, **kwargs):
     """Rolling Pearson correlation"""
-    case, short_ma_length, long_ma_length = args
+    case, alpha, short_ma_length, long_ma_length, lookback_window = args
     data = kwargs.get("data")
-    lookback_window = kwargs.get("lookback_window")
+    data_lookback_window = kwargs.get("data_lookback_window")
 
     if short_ma_length >= long_ma_length:
         return {
-            'loss': float("inf"),
+            'loss': np.inf,
             'status': STATUS_OK,
             'rolling_corr': np.nan
         }
 
-    PCY = []
-    pcy = 0
-    for idx in range(lookback_window, data.shape[0]):
-        data_lb = data.iloc[idx-lookback_window+1:idx+1]
-        closes = data_lb["close"].to_numpy()
-        volumes = data_lb["volume"].to_numpy()
-        pcy = CYC(
-            data=closes,
-            cyc=pcy,
+    VOC = []
+    voc = 0
+    for idx in range(data_lookback_window, data.shape[0]):
+        data_lb = data.iloc[idx-data_lookback_window+1:idx+1]
+        volumes = data_lb["volume"].to_numpy(dtype=float)
+        voc = CYC(
+            data=volumes,
+            cyc=voc,
             short_ma_length=short_ma_length,
             long_ma_length=long_ma_length,
-            alpha=0.33,
-            lookback_window=10,
+            alpha=alpha,
+            lookback_window=lookback_window,
         )
-        PCY.append(pcy)
-    data_bt = data.iloc[lookback_window:].copy()
-    data_bt["PCY"] = PCY
+        VOC.append(voc)
+    data_bt = data.iloc[data_lookback_window:].copy()
+    data_bt["VOC"] = VOC
 
-    def turning_points(x):
-        if x[0] > x[1] and x[2] > x[1]:
+    def voc_turning_points(x):
+        # VOC trough represents a strong trend, return 1
+        if x[0] > x[1] and x[1] < x[2]:  # and x[1] < 10:
             return 1
-        elif x[0] < x[1] and x[2] < x[1]:
+        # VOC peak represents trend doesn't continue, return -1
+        elif x[0] < x[1] and x[1] > x[2]:  # and x[1] > 90:
             return -1
         return 0
 
-    data_bt["PCY_interval"] = rolling_apply(
-        turning_points,
+    data_bt["VOC_interval"] = rolling_apply(
+        voc_turning_points,
         3,
-        data_bt.PCY.values
+        data_bt.VOC.values
     )
     data_bt = data_bt[
-        (data_bt.PCY_interval == 1) | (data_bt.PCY_interval == -1)
+        (data_bt.VOC_interval == 1) | (data_bt.VOC_interval == -1)
     ]
 
-    s1 = data_bt.close.diff().apply(lambda x: int(x > 0))
-    s2 = data_bt.PCY.diff().apply(lambda x: int(x > 0))
-    rolling_corr = s1.rolling(200).corr(s2).dropna()
+    if len(data_bt) < 50:
+        return {
+            'loss': np.inf,
+            'status': STATUS_OK,
+            'rolling_corr': np.nan
+        }
+    def corr(x, y):
+        return np.corrcoef(x, y)[0][1]
+
+    n = len(data_bt) // 2
+    rolling_corr = rolling_apply(
+        corr,
+        n,
+        data_bt.VOC.diff().apply(lambda x: np.sign(x)).dropna().values,
+        data_bt.volume.diff().apply(lambda x: np.sign(x)).dropna().values
+    )
+    rolling_corr = rolling_corr[~np.isnan(rolling_corr)]
+    rolling_corr_mean = rolling_corr.mean()
+    loss = -rolling_corr_mean
     return {
-        'loss': -rolling_corr.mean(),
+        'loss': loss,
         'status': STATUS_OK,
-        'rolling_corr': rolling_corr.mean()
+        'rolling_corr': rolling_corr_mean,
     }
 
 def worker(
-        data, lookback_window, space
+        data, data_lookback_window, space
 ) -> Dict[str, float]:
     """Process that run the optimization"""
     trials = Trials()
     best = timeit(fmin)(
         partial(rolling_corr,
                 data=data,
-                lookback_window=lookback_window),
+                data_lookback_window=data_lookback_window
+                ),
         space,
         algo=tpe.suggest,
-        max_evals=60,
+        max_evals=150,
         trials=trials,
         rstate=np.random.default_rng(SEED)
     )
+    short_ma_length = short_ma_length_choice[best['short_ma_length']]
+    long_ma_length = long_ma_length_choice[best['long_ma_length']]
+    lookback_window = lookback_window_choice[best['lookback_window']]
     opt_params = {
-        'short_ma_length': short_ma_length_choice[best['short_ma_length']],
-        'long_ma_length': long_ma_length_choice[best['long_ma_length']],
+        'alpha': best['alpha'],
+        'short_ma_length': short_ma_length,
+        'long_ma_length': long_ma_length,
+        'lookback_window': lookback_window,
         'rolling_corr': trials.best_trial['result']['rolling_corr']
     }
     print(opt_params)
     return opt_params
 
 # define a search space
-short_ma_length_choice = [10, 15, 20, 25, 30, 35, 40, 45, 50]
-long_ma_length_choice = [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+short_ma_length_choice = [10, 11, 12, 13, 14, 15]
+long_ma_length_choice = [20, 25, 30, 35, 40, 45, 50]
+lookback_window_choice = [10, 15, 20, 25, 30, 35, 40, 45, 50]
 space = hp.choice('a', [
     ('case 1',
+     hp.uniform('alpha', 0.1, 0.5),
      hp.choice('short_ma_length', short_ma_length_choice),
      hp.choice('long_ma_length', long_ma_length_choice),
+     hp.choice('lookback_window', lookback_window_choice),
      )]
 )
 
-worker(data, lookback_window, space)
+worker(data, data_lookback_window, space)

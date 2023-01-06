@@ -99,8 +99,7 @@ data = load_data(security, data_start, start, end, data_lookback_window)
 
 def rolling_corr(args, **kwargs):
     """Rolling Pearson correlation"""
-    case, alpha, short_ma_length, long_ma_length_multiple, lookback_window = args
-    long_ma_length = long_ma_length_multiple * short_ma_length
+    case, alpha, short_ma_length, long_ma_length, lookback_window = args
     data = kwargs.get("data")
     data_lookback_window = kwargs.get("data_lookback_window")
 
@@ -129,9 +128,9 @@ def rolling_corr(args, **kwargs):
     data_bt["PCY"] = PCY
 
     def pcy_turning_points(x):
-        if x[0] > x[1] and x[1] < x[2] and x[1] < 10:
+        if x[0] > x[1] and x[1] < x[2]:  # and x[1] < 10:
             return 1
-        elif x[0] < x[1] and x[1] > x[2] and x[1] > 90:
+        elif x[0] < x[1] and x[1] > x[2]:  # and x[1] > 90:
             return -1
         return 0
 
@@ -144,8 +143,7 @@ def rolling_corr(args, **kwargs):
         (data_bt.PCY_interval == 1) | (data_bt.PCY_interval == -1)
     ]
 
-    n = len(data_bt) // 3
-    if n <= 20:
+    if len(data_bt) < 50:
         return {
             'loss': np.inf,
             'status': STATUS_OK,
@@ -153,6 +151,8 @@ def rolling_corr(args, **kwargs):
         }
     def corr(x, y):
         return np.corrcoef(x, y)[0][1]
+
+    n = len(data_bt) // 2
     rolling_corr = rolling_apply(
         corr,
         n,
@@ -160,50 +160,13 @@ def rolling_corr(args, **kwargs):
         data_bt.close.diff().apply(lambda x: np.sign(x)).dropna().values
     )
     rolling_corr = rolling_corr[~np.isnan(rolling_corr)]
+    rolling_corr_mean = rolling_corr.mean()
+    loss = -rolling_corr_mean
     return {
-        'loss': -rolling_corr.mean(),
+        'loss': loss,
         'status': STATUS_OK,
-        'rolling_corr': rolling_corr.mean()
+        'rolling_corr': rolling_corr_mean,
     }
-
-    # def pcy_turning_points(x):
-    #     if x[0] > x[1] and x[1] < x[2] and x[1] < 10:
-    #         return 1
-    #     elif x[0] < x[1] and x[1] > x[2] and x[1] > 90:
-    #         return -1
-    #     return 0
-    #
-    # data_bt["PCY_interval"] = rolling_apply(
-    #     pcy_turning_points,
-    #     3,
-    #     data_bt.PCY.values
-    # )
-    # data_bt = data_bt[
-    #     (data_bt.PCY_interval == 1) | (data_bt.PCY_interval == -1)
-    # ]
-    #
-    # n = len(data_bt) // 3
-    # if n <= 1:
-    #     return {
-    #         'loss': np.inf,
-    #         'status': STATUS_OK,
-    #         'rolling_corr': np.nan
-    #     }
-    #
-    # def corr(x, y):
-    #     return np.corrcoef(x, y)[0][1]
-    # rolling_corr = rolling_apply(
-    #     corr,
-    #     n,
-    #     data_bt.close.diff().apply(lambda x: int(x > 0)).dropna().values,
-    #     data_bt.PCY.diff().apply(lambda x: int(x > 0)).dropna().values
-    # )
-    # rolling_corr = rolling_corr[~np.isnan(rolling_corr)]
-    # return {
-    #     'loss': -rolling_corr.mean(),
-    #     'status': STATUS_OK,
-    #     'rolling_corr': rolling_corr.mean()
-    # }
 
 def worker(
         data, data_lookback_window, space
@@ -221,9 +184,8 @@ def worker(
         trials=trials,
         rstate=np.random.default_rng(SEED)
     )
-    mul = long_ma_length_multiple_choice[best['long_ma_length_multiple']]
     short_ma_length = short_ma_length_choice[best['short_ma_length']]
-    long_ma_length = mul * short_ma_length
+    long_ma_length = long_ma_length_choice[best['long_ma_length']]
     lookback_window = lookback_window_choice[best['lookback_window']]
     opt_params = {
         'alpha': best['alpha'],
@@ -236,14 +198,14 @@ def worker(
     return opt_params
 
 # define a search space
-short_ma_length_choice = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-long_ma_length_multiple_choice = [2, 3, 4, 5]
+short_ma_length_choice = [10, 11, 12, 13, 14, 15]
+long_ma_length_choice = [20, 25, 30, 35, 40, 45, 50]
 lookback_window_choice = [10, 15, 20, 25, 30, 35, 40, 45, 50]
 space = hp.choice('a', [
     ('case 1',
-     hp.uniform('alpha', 0.25, 0.5),
+     hp.uniform('alpha', 0.1, 0.5),
      hp.choice('short_ma_length', short_ma_length_choice),
-     hp.choice('long_ma_length_multiple', long_ma_length_multiple_choice),
+     hp.choice('long_ma_length', long_ma_length_choice),
      hp.choice('lookback_window', lookback_window_choice),
      )]
 )

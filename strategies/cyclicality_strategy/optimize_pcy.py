@@ -13,7 +13,7 @@ written for another century.
 You should have received a copy of the JXW license with
 this file. If not, please write to: josephchenhk@gmail.com
 """
-import pickle
+import json
 from datetime import datetime
 from functools import partial
 from typing import Dict
@@ -180,7 +180,7 @@ def worker(
                 ),
         space,
         algo=tpe.suggest,
-        max_evals=200,
+        max_evals=300,
         trials=trials,
         rstate=np.random.default_rng(SEED)
     )
@@ -195,10 +195,12 @@ def worker(
         'rolling_corr': trials.best_trial['result']['rolling_corr']
     }
     print(opt_params)
+    with open('optimized_params.json', 'w') as f:
+        json.dump(opt_params, f)
     return opt_params
 
 # define a search space
-short_ma_length_choice = [10, 11, 12, 13, 14, 15]
+short_ma_length_choice = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 long_ma_length_choice = [20, 25, 30, 35, 40, 45, 50]
 lookback_window_choice = [10, 15, 20, 25, 30, 35, 40, 45, 50]
 space = hp.choice('a', [

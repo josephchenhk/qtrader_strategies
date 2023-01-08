@@ -73,20 +73,20 @@ def load_data(
 # end = datetime(2021, 12, 31, 23, 59, 59)
 # lookback_window = 150
 
-# security = Futures(
-#     code="HK.HSImain",
-#     lot_size=50,
-#     security_name="HK.HSImain",
-#     exchange=Exchange.HKFE,
-#     expiry_date="20221231"
-# )
-
-security = Stock(
-    code="US.SPY",
-    lot_size=1,
-    security_name="US.SPY",
-    exchange=Exchange.SMART
+security = Futures(
+    code="HK.HSImain",
+    lot_size=50,
+    security_name="HK.HSImain",
+    exchange=Exchange.HKFE,
+    expiry_date="20221231"
 )
+
+# security = Stock(
+#     code="US.SPY",
+#     lot_size=1,
+#     security_name="US.SPY",
+#     exchange=Exchange.SMART
+# )
 
 data_start = datetime(2016, 1, 1, 0, 0, 0)
 start = datetime(2018, 1, 1, 0, 0, 0)
@@ -181,7 +181,7 @@ def worker(
                 ),
         space,
         algo=tpe.suggest,
-        max_evals=150,
+        max_evals=250,
         trials=trials,
         rstate=np.random.default_rng(SEED)
     )
@@ -204,7 +204,7 @@ long_ma_length_choice = [20, 25, 30, 35, 40, 45, 50]
 lookback_window_choice = [10, 15, 20, 25, 30, 35, 40, 45, 50]
 space = hp.choice('a', [
     ('case 1',
-     hp.uniform('alpha', 0.1, 0.5),
+     hp.uniform('alpha', 0.1, 0.33),
      hp.choice('short_ma_length', short_ma_length_choice),
      hp.choice('long_ma_length', long_ma_length_choice),
      hp.choice('lookback_window', lookback_window_choice),

@@ -92,7 +92,7 @@ security = Futures(
 data_start = datetime(2016, 1, 1, 0, 0, 0)
 start = datetime(2018, 1, 1, 0, 0, 0)
 end = datetime(2022, 12, 1, 23, 59, 59)
-data_lookback_window = 350
+data_lookback_window = 110
 
 # Load data
 data = load_data(security, data_start, start, end, data_lookback_window)
@@ -180,7 +180,7 @@ def worker(
                 ),
         space,
         algo=tpe.suggest,
-        max_evals=250,
+        max_evals=200,
         trials=trials,
         rstate=np.random.default_rng(SEED)
     )
@@ -203,7 +203,7 @@ long_ma_length_choice = [20, 25, 30, 35, 40, 45, 50]
 lookback_window_choice = [10, 15, 20, 25, 30, 35, 40, 45, 50]
 space = hp.choice('a', [
     ('case 1',
-     hp.uniform('alpha', 0.1, 0.5),
+     hp.uniform('alpha', 0.1, 0.33),
      hp.choice('short_ma_length', short_ma_length_choice),
      hp.choice('long_ma_length', long_ma_length_choice),
      hp.choice('lookback_window', lookback_window_choice),

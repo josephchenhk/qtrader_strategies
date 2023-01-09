@@ -13,7 +13,8 @@ written for another century.
 You should have received a copy of the JXW license with
 this file. If not, please write to: josephchenhk@gmail.com
 """
-import pickle
+import os
+import json
 from datetime import datetime
 from functools import partial
 from typing import Dict
@@ -90,7 +91,7 @@ security = Futures(
 
 data_start = datetime(2016, 1, 1, 0, 0, 0)
 start = datetime(2018, 1, 1, 0, 0, 0)
-end = datetime(2022, 12, 1, 23, 59, 59)
+end = datetime(2023, 1, 1, 23, 59, 59)
 data_lookback_window = 110
 
 # Load data
@@ -181,7 +182,7 @@ def worker(
                 ),
         space,
         algo=tpe.suggest,
-        max_evals=250,
+        max_evals=300,
         trials=trials,
         rstate=np.random.default_rng(SEED)
     )
@@ -196,10 +197,13 @@ def worker(
         'rolling_corr': trials.best_trial['result']['rolling_corr']
     }
     print(opt_params)
+    target = os.path.basename(__file__).replace(".py", "").split("_")[-1]
+    with open(f'optimized_{target}_params.json', 'w') as f:
+        json.dump(opt_params, f)
     return opt_params
 
 # define a search space
-short_ma_length_choice = [10, 11, 12, 13, 14, 15]
+short_ma_length_choice = [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
 long_ma_length_choice = [20, 25, 30, 35, 40, 45, 50]
 lookback_window_choice = [10, 15, 20, 25, 30, 35, 40, 45, 50]
 space = hp.choice('a', [

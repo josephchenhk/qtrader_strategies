@@ -64,16 +64,16 @@ if __name__ == "__main__":
     )
 
     data_start = datetime(2016, 1, 1, 0, 0, 0)
-    start = datetime(2018, 1, 1, 0, 0, 0)
-    end = datetime(2022, 12, 1, 23, 59, 59)
+    start = datetime(2022, 1, 1, 0, 0, 0)
+    end = datetime(2023, 1, 1, 23, 59, 59)
     data_lookback_window = 110
 
     # Load data
     data = load_data(security, data_start, start, end, data_lookback_window)
 
     cyc = {
-        "close": 0,
-        "volume": 0
+        "close": 50,
+        "volume": 50
     }
     PCY = []
     VOC = []
@@ -94,13 +94,16 @@ if __name__ == "__main__":
             lookback_window=pcy_params['lookback_window'],
         )
         PCY.append(cyc["close"])
+
+        with open("optimized_voc_params.json", "r") as f:
+            voc_params = json.load(f)
         cyc["volume"] = CYC(
             data=volumes,
             cyc=cyc["volume"],
-            short_ma_length=13,
-            long_ma_length=25,
-            alpha=0.26,
-            lookback_window=30,
+            short_ma_length=voc_params['short_ma_length'],
+            long_ma_length=voc_params['long_ma_length'],
+            alpha=voc_params['alpha'],
+            lookback_window=voc_params['lookback_window'],
         )
         VOC.append(cyc["volume"])
     data_bt = data.iloc[data_lookback_window:].copy()

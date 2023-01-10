@@ -1,1 +1,1 @@
-{"alpha": 0.1779635036912075, "short_ma_length": 22, "long_ma_length": 35, "lookback_window": 45, "rolling_corr": 0.3102399896831124}
+{"alpha": 0.2797387411151462, "short_ma_length": 12, "long_ma_length": 25, "lookback_window": 20, "rolling_corr": 0.09126515270876283}

@@ -129,10 +129,10 @@ def rolling_corr(args, **kwargs):
 
     def voc_turning_points(x):
         # VOC trough represents a strong trend, return 1
-        if x[0] > x[1] and x[1] < x[2]:  # and x[1] < 10:
+        if x[0] >= x[1] and x[1] <= x[2]:  # and x[1] < 10:
             return 1
         # VOC peak represents trend doesn't continue, return -1
-        elif x[0] < x[1] and x[1] > x[2]:  # and x[1] > 90:
+        elif x[0] <= x[1] and x[1] >= x[2]:  # and x[1] > 90:
             return -1
         return 0
 
@@ -203,7 +203,7 @@ def worker(
     return opt_params
 
 # define a search space
-short_ma_length_choice = [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+short_ma_length_choice = [10, 11, 12, 13, 14, 15]
 long_ma_length_choice = [20, 25, 30, 35, 40, 45, 50]
 lookback_window_choice = [10, 15, 20, 25, 30, 35, 40, 45, 50]
 space = hp.choice('a', [

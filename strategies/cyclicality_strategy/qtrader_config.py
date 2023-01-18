@@ -26,7 +26,7 @@ GATEWAYS = {
     "Backtest": BACKTEST_GATEWAY,
 }
 
-TIME_STEP = 24 * 60 * 60 * 1000  # time step in milliseconds
+TIME_STEP = 1 * 60 * 1000  # time step in milliseconds
 
 DATA_PATH = {
     # "kline": "/Users/joseph/Dropbox/code/demo_strategy/clean_data/k_line",

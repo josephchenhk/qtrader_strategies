@@ -2,10 +2,10 @@
 
 ---
 author: Joseph Chen\
-date: Oct 4th, 2022
+date: Jan 24th, 2023
 ---
 
-This demo will show how to build practical strateqies 
+This repo will show how to build practical strateqies 
 (e.g., pairs trading) from scratch in the framework of 
 [`QTrader`](https://github.com/josephchenhk/qtrader).
 
@@ -30,9 +30,3 @@ Or you can manually input the following commands:
 > pip install dill finta termcolor pyyaml func_timeout scipy statsmodels hyperopt jupyter seaborn
 ```
 
-## EDA and Data Preparations
-
-Refer to notebook `EDA.ipynb` for exploratory data analysis. After
-running the notebook, you should have prepared a data folder named
-`clean_data` in your current working directory. We will use this 
-dataset to backtest our model.

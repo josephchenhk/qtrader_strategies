@@ -35,7 +35,7 @@ from qtrader.core.utility import timeit
 from qtalib.indicators import CYC
 from qtrader_config import *
 
-SEED = 2022
+SEED = 2023
 
 def load_data(
         security: Security,
@@ -75,11 +75,11 @@ def load_data(
 
 
 security = Futures(
-    code="HK.HSImain",
+    code="HK.HHImain",
     lot_size=50,
-    security_name="HK.HSImain",
+    security_name="HK.HHImain",
     exchange=Exchange.HKFE,
-    expiry_date="20221231"
+    expiry_date="20230228"
 )
 
 # security = Stock(
@@ -89,9 +89,9 @@ security = Futures(
 #     exchange=Exchange.SMART
 # )
 
-data_start = datetime(2016, 1, 1, 0, 0, 0)
-start = datetime(2018, 1, 1, 0, 0, 0)
-end = datetime(2022, 12, 1, 23, 59, 59)
+data_start = datetime(2019, 2, 1, 0, 0, 0)
+start = datetime(2020, 2, 1, 0, 0, 0)
+end = datetime(2023, 2, 1, 23, 59, 59)
 data_lookback_window = 110
 
 # Load data
@@ -206,7 +206,7 @@ long_ma_length_choice = [20, 25, 30, 35, 40, 45, 50]
 lookback_window_choice = [10, 15, 20, 25, 30, 35, 40, 45, 50]
 space = hp.choice('a', [
     ('case 1',
-     hp.uniform('alpha', 0.1, 0.33),
+     hp.uniform('alpha', 0.1, 0.40),
      hp.choice('short_ma_length', short_ma_length_choice),
      hp.choice('long_ma_length', long_ma_length_choice),
      hp.choice('lookback_window', lookback_window_choice),

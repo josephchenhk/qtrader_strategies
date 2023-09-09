@@ -74,24 +74,24 @@ def load_data(
 # lookback_window = 150
 
 
-security = Futures(
-    code="HK.HHImain",
-    lot_size=50,
-    security_name="HK.HHImain",
-    exchange=Exchange.HKFE,
-    expiry_date="20230228"
-)
-
-# security = Stock(
-#     code="US.SPY",
-#     lot_size=1,
-#     security_name="US.SPY",
-#     exchange=Exchange.SMART
+# security = Futures(
+#     code="HK.HHImain",
+#     lot_size=50,
+#     security_name="HK.HHImain",
+#     exchange=Exchange.HKFE,
+#     expiry_date="20230228"
 # )
 
-data_start = datetime(2019, 2, 1, 0, 0, 0)
-start = datetime(2020, 2, 1, 0, 0, 0)
-end = datetime(2023, 2, 1, 23, 59, 59)
+security = Stock(
+    code="FUT.NG",
+    lot_size=10000,
+    security_name="FUT.NG",
+    exchange=Exchange.NYMEX
+)
+
+data_start = datetime(2022, 1, 1, 0, 0, 0)
+start = datetime(2022, 7, 1, 0, 0, 0)
+end = datetime(2023, 3, 1, 23, 59, 59)
 data_lookback_window = 110
 
 # Load data
